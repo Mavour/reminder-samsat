@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pengaturan - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html" class="active"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Pengaturan</h1>
+      </div>
+
+      <div class="content-area">
+        <div class="tabs" id="tabs">
+          <button class="tab active" onclick="switchTab('profil')">Profil Saya</button>
+          <button class="tab" id="tabKelola" onclick="switchTab('kelola')">Kelola Pengguna</button>
+          <button class="tab" onclick="switchTab('integrasi')">Integrasi</button>
+          <button class="tab" onclick="switchTab('tentang')">Tentang</button>
+        </div>
+
+        <!-- Tab Profil Saya -->
+        <div id="panelProfil" class="settings-panel">
+          <div class="card">
+            <div class="card-header">
+              <h2>Profil Saya</h2>
+            </div>
+            <div class="card-body">
+              <form id="profileForm" onsubmit="saveProfile(event)">
+                <div class="form-group">
+                  <label>Username</label>
+                  <input type="text" id="profUsername" disabled>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="profNama" required>
+                  </div>
+                  <div class="form-group">
+                    <label>No. HP</label>
+                    <input type="text" id="profNoHp" placeholder="08xxxxxxxxxx">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Role</label>
+                    <input type="text" id="profRole" disabled>
+                  </div>
+                  <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" id="profJabatan" disabled>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:auto;margin-top:8px">Simpan Profil</button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Kelola Pengguna -->
+        <div id="panelKelola" class="settings-panel" style="display:none">
+          <div class="card mb-2">
+            <div class="card-header">
+              <h2>Tambah Pengguna Baru</h2>
+            </div>
+            <div class="card-body">
+              <form id="addUserForm" onsubmit="addUser(event)">
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="newUsername" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="newPassword" required>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Nama Lengkap</label>
+                    <input type="text" id="newNama" required>
+                  </div>
+                  <div class="form-group">
+                    <label>Role</label>
+                    <select id="newRole">
+                      <option value="user">User</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>No. HP</label>
+                    <input type="text" id="newNoHp" placeholder="08xxxxxxxxxx">
+                  </div>
+                  <div class="form-group">
+                    <label>Jabatan</label>
+                    <input type="text" id="newJabatan" placeholder="Contoh: Kasubag Umum">
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:auto;margin-top:8px">+ Tambah Pengguna</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Daftar Pengguna</h2>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Nama</th>
+                    <th>Role</th>
+                    <th>No. HP</th>
+                    <th>Jabatan</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody id="usersBody">
+                  <tr><td colspan="6" class="text-center" style="padding:40px"><span class="loading-spinner"></span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="usersEmpty" style="display:none">
+              <div class="icon">&#128100;</div>
+              <p>Belum ada data pengguna</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Integrasi -->
+        <div id="panelIntegrasi" class="settings-panel" style="display:none">
+          <div class="card mb-2">
+            <div class="card-header">
+              <h2>&#9200; Pengaturan Reminder</h2>
+            </div>
+            <div class="card-body">
+              <form id="reminderForm" onsubmit="saveReminderSettings(event)">
+                <p style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">
+                  Atur berapa hari sebelum jatuh tempo pajak reminder WhatsApp dikirim otomatis (setiap jam 08:00 WIB).
+                  Pisahkan dengan koma, contoh: <strong>7, 3</strong> berarti kirim saat H-7 dan H-3.
+                </p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px">
+                    <label for="reminderDaysInput">Hari Pengingat (H-...)</label>
+                    <input type="text" id="reminderDaysInput" placeholder="Contoh: 7, 3" required>
+                  </div>
+                  <button type="submit" class="btn btn-primary" style="width:auto;margin-top:20px" id="reminderBtn">Simpan</button>
+                </div>
+                <p id="reminderInfo" style="font-size:0.8rem;color:var(--gray-500);margin-top:10px"></p>
+              </form>
+            </div>
+          </div>
+
+          <div class="card mb-2">
+            <div class="card-header">
+              <h2>Google Calendar</h2>
+            </div>
+            <div class="card-body">
+              <div class="flex-between">
+                <div>
+                  <p style="font-size:0.9rem;color:var(--gray-600)">Sinkronkan jatuh tempo kendaraan ke Google Calendar Anda.</p>
+                  <p id="gcalStatus" style="font-size:0.8rem;color:var(--gray-500);margin-top:4px">Memeriksa status...</p>
+                </div>
+                <a id="gcalBtn" href="#" onclick="connectCalendar(event)" class="btn btn-primary btn-sm" style="width:auto">Hubungkan</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h2>Fonnte (WhatsApp Gateway)</h2>
+            </div>
+            <div class="card-body">
+              <div class="flex-between">
+                <div>
+                  <p style="font-size:0.9rem;color:var(--gray-600)">Token Fonnte untuk mengirim pesan WhatsApp reminder.</p>
+                  <p id="fonnteStatus" style="font-size:0.8rem;color:var(--gray-500);margin-top:4px">Memeriksa status...</p>
+                </div>
+                <span id="fonnteBadge"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab Tentang -->
+        <div id="panelTentang" class="settings-panel" style="display:none">
+          <div class="card">
+            <div class="card-header">
+              <h2>Tentang Sistem</h2>
+            </div>
+            <div class="card-body">
+              <div style="text-align:center;padding:20px 0">
+                <div style="font-size:3rem;margin-bottom:12px">&#128663;</div>
+                <h2 style="margin-bottom:4px">Reminder Samsat</h2>
+                <p style="color:var(--gray-500);font-size:0.9rem;margin-bottom:24px">Sistem Pengelolaan Pajak Kendaraan Dinas</p>
+              </div>
+              <table>
+                <tr>
+                  <td style="font-weight:600;width:160px">Versi</td>
+                  <td>1.0.0</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600">Tahun Pembuatan</td>
+                  <td>2026</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600">Deskripsi</td>
+                  <td>Sistem pengingat otomatis jatuh tempo pajak kendaraan dinas dengan integrasi Google Calendar dan WhatsApp (Fonnte).</td>
+                </tr>
+                <tr>
+                  <td style="font-weight:600">Fitur Utama</td>
+                  <td>
+                    &#8226; Manajemen data kendaraan dinas<br>
+                    &#8226; Perhitungan otomatis jatuh tempo pajak<br>
+                    &#8226; Integrasi Google Calendar<br>
+                    &#8226; Pengiriman reminder via WhatsApp (Fonnte)<br>
+                    &#8226; Manajemen pengguna &amp; multi-role
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal Edit User -->
+  <div class="modal-overlay" id="editUserModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Pengguna</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editUserForm" onsubmit="saveEditUser(event)">
+          <input type="hidden" id="editUserId">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="editUsername" disabled>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nama Lengkap</label>
+              <input type="text" id="editNama" required>
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select id="editRole">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>No. HP</label>
+              <input type="text" id="editNoHp">
+            </div>
+            <div class="form-group">
+              <label>Jabatan</label>
+              <input type="text" id="editJabatan">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeEditModal()">Batal</button>
+        <button class="btn btn-primary btn-sm" style="width:auto" onclick="document.getElementById('editUserForm').requestSubmit()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const currentUser = getUser();
+    document.getElementById('userName').textContent = currentUser?.nama || 'User';
+    document.getElementById('userRole').textContent = currentUser?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (currentUser?.nama || 'U')[0].toUpperCase();
+
+    if (currentUser?.role !== 'admin') {
+      document.getElementById('tabKelola').style.display = 'none';
+    }
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.settings-panel').forEach(p => p.style.display = 'none');
+
+      const tabMap = { profil: 0, kelola: 1, integrasi: 2, tentang: 3 };
+      const panelMap = { profil: 'panelProfil', kelola: 'panelKelola', integrasi: 'panelIntegrasi', tentang: 'panelTentang' };
+
+      document.querySelectorAll('.tab')[tabMap[tab]].classList.add('active');
+      document.getElementById(panelMap[tab]).style.display = 'block';
+    }
+
+    // === Profil Saya ===
+    async function loadProfile() {
+      try {
+        const me = await apiRequest('/auth/me');
+        document.getElementById('profUsername').value = me.username || '';
+        document.getElementById('profNama').value = me.nama || '';
+        document.getElementById('profNoHp').value = me.no_hp || '';
+        document.getElementById('profRole').value = me.role === 'admin' ? 'Administrator' : 'User';
+        document.getElementById('profJabatan').value = me.jabatan || '-';
+      } catch (err) {
+        showToast('Gagal memuat profil: ' + err.message, 'error');
+      }
+    }
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner"></span> Menyimpan...';
+
+      try {
+        const me = await apiRequest('/auth/me');
+        await apiRequest(`/auth/users/${me.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            nama: document.getElementById('profNama').value.trim(),
+            no_hp: document.getElementById('profNoHp').value.trim()
+          })
+        });
+        showToast('Profil berhasil disimpan.', 'success');
+        const updated = await apiRequest('/auth/me');
+        localStorage.setItem('user', JSON.stringify(updated));
+        document.getElementById('userName').textContent = updated.nama || 'User';
+        document.getElementById('userAvatar').textContent = (updated.nama || 'U')[0].toUpperCase();
+      } catch (err) {
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Profil';
+      }
+    }
+
+    // === Kelola Pengguna ===
+    let allUsers = [];
+
+    async function loadUsers() {
+      try {
+        allUsers = await apiRequest('/auth/users');
+        renderUsers(allUsers);
+      } catch (err) {
+        showToast('Gagal memuat pengguna: ' + err.message, 'error');
+      }
+    }
+
+    function renderUsers(users) {
+      const tbody = document.getElementById('usersBody');
+      const emptyState = document.getElementById('usersEmpty');
+
+      if (!users || users.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td class="font-mono">${u.username}</td>
+          <td>${u.nama || '-'}</td>
+          <td><span class="badge ${u.role === 'admin' ? 'badge-kritis' : 'badge-aman'}">${u.role === 'admin' ? 'Admin' : 'User'}</span></td>
+          <td>${u.no_hp || '-'}</td>
+          <td>${u.jabatan || '-'}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-outline btn-sm" onclick="editUser(${u.id})" title="Edit">&#9998;</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.username}')" title="Hapus">&#128465;</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function addUser(e) {
+      e.preventDefault();
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true;
+
+      try {
+        await apiRequest('/auth/register', {
+          method: 'POST',
+          body: JSON.stringify({
+            username: document.getElementById('newUsername').value.trim(),
+            password: document.getElementById('newPassword').value,
+            nama: document.getElementById('newNama').value.trim(),
+            role: document.getElementById('newRole').value,
+            no_hp: document.getElementById('newNoHp').value.trim(),
+            jabatan: document.getElementById('newJabatan').value.trim()
+          })
+        });
+        showToast('Pengguna berhasil ditambahkan.', 'success');
+        e.target.reset();
+        loadUsers();
+      } catch (err) {
+        showToast('Gagal menambah pengguna: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function editUser(id) {
+      const u = allUsers.find(x => x.id === id);
+      if (!u) return;
+      document.getElementById('editUserId').value = u.id;
+      document.getElementById('editUsername').value = u.username;
+      document.getElementById('editNama').value = u.nama || '';
+      document.getElementById('editRole').value = u.role || 'user';
+      document.getElementById('editNoHp').value = u.no_hp || '';
+      document.getElementById('editJabatan').value = u.jabatan || '';
+      document.getElementById('editUserModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editUserModal').style.display = 'none';
+    }
+
+    async function saveEditUser(e) {
+      e.preventDefault();
+      const id = document.getElementById('editUserId').value;
+      try {
+        await apiRequest(`/auth/users/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            nama: document.getElementById('editNama').value.trim(),
+            role: document.getElementById('editRole').value,
+            no_hp: document.getElementById('editNoHp').value.trim(),
+            jabatan: document.getElementById('editJabatan').value.trim()
+          })
+        });
+        showToast('Pengguna berhasil diperbarui.', 'success');
+        closeEditModal();
+        loadUsers();
+      } catch (err) {
+        showToast('Gagal memperbarui: ' + err.message, 'error');
+      }
+    }
+
+    async function deleteUser(id, username) {
+      if (!confirm(`Hapus pengguna "${username}"?`)) return;
+      try {
+        await apiRequest(`/auth/users/${id}`, { method: 'DELETE' });
+        showToast('Pengguna berhasil dihapus.', 'success');
+        loadUsers();
+      } catch (err) {
+        showToast('Gagal menghapus: ' + err.message, 'error');
+      }
+    }
+
+    // === Pengaturan Reminder ===
+    async function loadReminderSettings() {
+      try {
+        const cfg = await apiRequest('/config/reminder');
+        document.getElementById('reminderDaysInput').value = cfg.days.join(', ');
+        document.getElementById('reminderInfo').textContent = cfg.message;
+      } catch (err) {
+        showToast('Gagal memuat pengaturan reminder: ' + err.message, 'error');
+      }
+    }
+
+    async function saveReminderSettings(e) {
+      e.preventDefault();
+      const btn = document.getElementById('reminderBtn');
+      btn.disabled = true;
+
+      const raw = document.getElementById('reminderDaysInput').value;
+      const days = raw.split(',').map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x) && x > 0);
+
+      if (days.length === 0) {
+        showToast('Masukkan angka hari yang valid, contoh: 7, 3', 'error');
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await apiRequest('/config/reminder', {
+          method: 'PUT',
+          body: JSON.stringify({ days })
+        });
+        showToast('Pengaturan reminder disimpan.', 'success');
+        document.getElementById('reminderDaysInput').value = res.days.join(', ');
+        document.getElementById('reminderInfo').textContent = res.message;
+      } catch (err) {
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // === Integrasi ===
+    async function connectCalendar(e) {
+      e.preventDefault();
+      try {
+        const data = await apiRequest('/calendar/auth');
+        if (data && data.url) {
+          window.location.href = data.url;
+        } else {
+          showToast('Gagal mendapatkan URL otorisasi.', 'error');
+        }
+      } catch (err) {
+        showToast('Gagal terhubung: ' + err.message, 'error');
+      }
+    }
+
+    async function loadIntegrations() {
+      try {
+        const gcalStatus = document.getElementById('gcalStatus');
+        const gcalBtn = document.getElementById('gcalBtn');
+        const status = await apiRequest('/calendar/status');
+
+        if (status && status.connected) {
+          gcalStatus.innerHTML = '<span style="color:var(--success);font-weight:600">&#10003; Terhubung</span> - Kalender sudah terhubung.';
+          gcalBtn.textContent = 'Kelola';
+        } else {
+          gcalStatus.textContent = 'Belum terhubung. Klik tombol untuk menghubungkan.';
+          gcalBtn.textContent = 'Hubungkan';
+        }
+      } catch (err) {
+        document.getElementById('gcalStatus').textContent = 'Gagal memeriksa status.';
+      }
+
+      try {
+        const fonnteStatus = document.getElementById('fonnteStatus');
+        const fonnteBadge = document.getElementById('fonnteBadge');
+        const cfg = await apiRequest('/config/fonnte');
+
+        if (cfg && cfg.configured) {
+          fonnteStatus.innerHTML = '<span style="color:var(--success);font-weight:600">&#10003; Aktif</span> - Token sudah dikonfigurasi.';
+          fonnteBadge.innerHTML = '<span class="badge badge-aman">Aktif</span>';
+        } else {
+          fonnteStatus.textContent = 'Belum dikonfigurasi. Token perlu diatur di server.';
+          fonnteBadge.innerHTML = '<span class="badge badge-kritis">Nonaktif</span>';
+        }
+      } catch (err) {
+        document.getElementById('fonnteStatus').textContent = 'Gagal memeriksa status.';
+        document.getElementById('fonnteBadge').innerHTML = '<span class="badge badge-warning">Error</span>';
+      }
+    }
+
+    // === Init ===
+    loadProfile();
+    loadUsers();
+    loadReminderSettings();
+    loadIntegrations();
+  </script>
+</body>
+</html>

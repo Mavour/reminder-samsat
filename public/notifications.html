@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notifikasi - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html" class="active"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Riwayat Notifikasi</h1>
+        <button class="btn btn-warning btn-sm" id="testCronBtn" onclick="testCron()" style="display:none">&#9889; Test Cron</button>
+      </div>
+
+      <div class="content-area">
+        <div class="card">
+          <div class="card-header">
+            <div class="search-bar">
+              <input type="text" id="searchInput" placeholder="Cari nopol, tipe..." oninput="filterNotifications()">
+              <select id="typeFilter" onchange="filterNotifications()">
+                <option value="">Semua Tipe</option>
+                <option value="H-7">H-7</option>
+                <option value="H-3">H-3</option>
+                <option value="manual">Manual</option>
+              </select>
+              <select id="statusFilter" onchange="filterNotifications()">
+                <option value="">Semua Status</option>
+                <option value="sent">Terkirim</option>
+                <option value="failed">Gagal</option>
+              </select>
+            </div>
+          </div>
+          <div class="card-body" id="notifList">
+            <div class="text-center" style="padding:40px"><span class="loading-spinner"></span></div>
+          </div>
+          <div class="empty-state" id="emptyState" style="display:none">
+            <div class="icon">&#128276;</div>
+            <p>Belum ada riwayat notifikasi</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="notifModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">Detail Notifikasi</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const user = getUser();
+    document.getElementById('userName').textContent = user?.nama || 'User';
+    document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
+
+    if (isAdmin()) {
+      document.getElementById('testCronBtn').style.display = '';
+    }
+
+    let allNotifs = [];
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    function getTypeIcon(type) {
+      if (type && type.startsWith('whatsapp_h')) return '&#128336;';
+      return '&#128221;';
+    }
+
+    function getTypeLabel(type) {
+      if (type && type.startsWith('whatsapp_h')) {
+        const day = type.replace('whatsapp_h', '');
+        return 'H-' + day;
+      }
+      return 'Manual';
+    }
+
+    function formatTimestamp(dateStr) {
+      if (!dateStr) return '-';
+      const d = new Date(dateStr);
+      const now = new Date();
+      const diffMs = now - d;
+      const diffMin = Math.floor(diffMs / 60000);
+      const diffHr = Math.floor(diffMs / 3600000);
+      const diffDay = Math.floor(diffMs / 86400000);
+
+      if (diffMin < 1) return 'Baru saja';
+      if (diffMin < 60) return `${diffMin} menit lalu`;
+      if (diffHr < 24) return `${diffHr} jam lalu`;
+      if (diffDay < 7) return `${diffDay} hari lalu`;
+      return formatDate(dateStr);
+    }
+
+    function renderNotifications(notifs) {
+      const list = document.getElementById('notifList');
+      const empty = document.getElementById('emptyState');
+
+      if (notifs.length === 0) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      list.innerHTML = notifs.map(n => {
+        const statusClass = n.status === 'sent' ? 'sent' : 'failed';
+        const statusBadge = n.status === 'sent' ? 'badge-sent' : 'badge-failed';
+        const statusLabel = n.status === 'sent' ? 'Terkirim' : 'Gagal';
+        const messagePreview = n.message ? (n.message.length > 60 ? n.message.substring(0, 60) + '...' : n.message) : '-';
+
+        return `
+          <div class="notif-item" style="cursor:pointer" data-notif-id="${n.id}" onclick="showDetailById(${n.id})">
+            <div class="notif-icon ${statusClass}">${getTypeIcon(n.type)}</div>
+            <div class="notif-text">
+              <div class="title">${n.nopol || '-'} <span class="badge badge-outline" style="font-size:0.65rem;background:var(--gray-100);color:var(--gray-600)">${getTypeLabel(n.type)}</span></div>
+              <div class="desc">${messagePreview}</div>
+            </div>
+            <div style="text-align:right">
+              <span class="badge ${statusBadge}" style="margin-bottom:4px">${statusLabel}</span>
+              <div class="notif-time">${formatTimestamp(n.sent_at)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterNotifications() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const type = document.getElementById('typeFilter').value;
+      const status = document.getElementById('statusFilter').value;
+
+      let filtered = allNotifs;
+
+      if (search) {
+        filtered = filtered.filter(n =>
+          (n.nopol && n.nopol.toLowerCase().includes(search)) ||
+          (n.message && n.message.toLowerCase().includes(search))
+        );
+      }
+
+      if (type) {
+        const typeMap = { 'H-7': 'whatsapp_h7', 'H-3': 'whatsapp_h3', 'manual': 'whatsapp_manual' };
+        filtered = filtered.filter(n => n.type === typeMap[type]);
+      }
+
+      if (status) {
+        filtered = filtered.filter(n => n.status === status);
+      }
+
+      renderNotifications(filtered);
+    }
+
+    function showDetailById(id) {
+      const notif = allNotifs.find(x => x.id === id);
+      if (!notif) return;
+      showDetail(notif);
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    const MSG_ICONS = {
+      'Nopol': '&#128663;',
+      'Jenis': '&#128757;',
+      'Merk/Tipe': '&#127381;',
+      'Tahun': '&#128467;',
+      'Warna': '&#127912;',
+      'Jatuh Tempo': '&#9200;'
+    };
+    const EST_ICONS = {
+      'PKB': '&#128176;',
+      'SWDKLLJ': '&#128737;',
+      'Lain-lain': '&#129534;',
+      'Total': '&#128181;'
+    };
+    const FIELD_PREFIX = {
+      '🚗': 'Nopol',
+      '🚘': 'Jenis',
+      '🏷': 'Merk/Tipe',
+      '🗓': 'Tahun',
+      '🎨': 'Warna',
+      '⏰': 'Jatuh Tempo'
+    };
+
+    function stripWaMarkup(s) {
+      return s
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/_([^_]+)_/g, '$1')
+        .replace(/~([^~]+)~/g, '$1')
+        .replace(/```([^`]+)```/g, '$1')
+        .replace(/\uFE0F/g, '');
+    }
+
+    function renderMessageWithIcons(message) {
+      if (!message) return '-';
+      const lines = escHtml(message).split('\n');
+      let html = '';
+      let inEstimasi = false;
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        const clean = stripWaMarkup(trimmed);
+
+        if (/^🚗\s*PENGINGAT/i.test(clean)) {
+          html += `<div style="text-align:center;font-weight:800;color:var(--primary);font-size:1rem;padding:4px 0 8px;letter-spacing:0.3px">${clean.replace(/^🚗\s*/, '')}</div>`;
+          continue;
+        }
+
+        if (/Estimasi Biaya/i.test(clean)) {
+          html += '<div style="font-weight:700;font-size:0.8rem;color:var(--gray-600);margin:12px 0 4px;display:flex;align-items:center;gap:6px"><span>&#128176;</span> Estimasi Biaya</div>';
+          inEstimasi = true;
+          continue;
+        }
+
+        if (inEstimasi) {
+          const est = clean.match(/^[-•▪]\s*([A-Za-z-]+)\s*:\s*(.+)$/);
+          if (est) {
+            const label = est[1].trim();
+            const val = est[2].trim();
+            const icon = EST_ICONS[label] || '&#10070;';
+            const isTotal = label.toLowerCase() === 'total';
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;${isTotal ? 'border-top:1px solid var(--gray-200);margin-top:4px' : ''}">
+              <span style="font-size:0.95rem">${icon}</span>
+              <span style="flex:1;color:var(--gray-600);font-size:0.82rem">${label}</span>
+              <span style="font-weight:${isTotal ? '700' : '600'};${isTotal ? 'color:var(--primary);font-size:0.95rem' : ''}">${val}</span>
+            </div>`;
+            continue;
+          }
+          if (clean === '') { inEstimasi = false; html += '<div style="height:8px"></div>'; continue; }
+        }
+
+        const emojiKey = Object.keys(FIELD_PREFIX).find(k => clean.startsWith(k));
+        if (emojiKey) {
+          const rest = clean.slice(emojiKey.length).replace(/^[:\s]+/, '');
+          if (rest.includes(':')) {
+            const label = FIELD_PREFIX[emojiKey];
+            const val = rest.replace(/^[^:]*:\s*/, '').trim();
+            html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--gray-200)">
+              <span style="font-size:1rem">${emojiKey}</span>
+              <span style="flex:1;color:var(--gray-600);font-size:0.82rem">${label}</span>
+              <span style="font-weight:600">${val}</span>
+            </div>`;
+            continue;
+          }
+        }
+
+        const field = clean.match(/^(Nopol|Jenis|Merk\/Tipe|Tahun|Warna|Jatuh Tempo)\s*:\s*(.+)$/);
+        if (field) {
+          const label = field[1];
+          const val = field[2].trim();
+          html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--gray-200)">
+            <span style="font-size:1rem">${MSG_ICONS[label]}</span>
+            <span style="flex:1;color:var(--gray-600);font-size:0.82rem">${label}</span>
+            <span style="font-weight:600">${val}</span>
+          </div>`;
+          continue;
+        }
+
+        if (clean === '') { html += '<div style="height:8px"></div>'; continue; }
+
+        if (/^(Dimohon|Mohon)/i.test(clean.replace(/^[^\w]+/, ''))) {
+          html += `<div style="display:flex;align-items:flex-start;gap:8px;background:var(--warning-light);border-radius:8px;padding:8px 10px;margin:6px 0;font-weight:600;color:#92400e;font-size:0.85rem"><span>&#9888;&#65039;</span><span>${clean.replace(/^[^\w]+/, '')}</span></div>`;
+          continue;
+        }
+
+        if (/^Salam/i.test(clean)) {
+          html += `<div style="margin-top:8px;color:var(--gray-600);font-size:0.85rem">${clean}</div>`;
+          continue;
+        }
+
+        html += `<div style="padding:1px 0;color:var(--gray-700)">${clean}</div>`;
+      }
+      return html;
+    }
+
+    function showDetail(notif) {
+      const modal = document.getElementById('notifModal');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+
+      title.textContent = `Notifikasi ${notif.nopol || ''}`;
+      body.innerHTML = `
+        <div style="margin-bottom:16px">
+          <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Nopol</div>
+          <div class="font-mono font-bold" style="font-size:1.1rem">${notif.nopol || '-'}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+          <div>
+            <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Tipe</div>
+            <span class="badge badge-outline" style="background:var(--gray-100);color:var(--gray-600)">${getTypeLabel(notif.type)}</span>
+          </div>
+          <div>
+            <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Status</div>
+            <span class="badge ${notif.status === 'sent' ? 'badge-sent' : 'badge-failed'}">${notif.status === 'sent' ? 'Terkirim' : 'Gagal'}</span>
+          </div>
+        </div>
+        <div style="margin-bottom:16px">
+          <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Tanggal Kirim</div>
+          <div>${notif.sent_at ? formatDateFull(notif.sent_at) : '-'}</div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Pesan Lengkap</div>
+          <div style="background:#f8fafc;border:1px solid var(--gray-200);border-radius:10px;padding:14px;font-size:0.875rem;line-height:1.6">${renderMessageWithIcons(notif.message)}</div>
+        </div>
+      `;
+
+      modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('notifModal').style.display = 'none';
+    }
+
+    document.getElementById('notifModal').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    async function testCron() {
+      if (!confirm('Jalankan pengecekan cron sekarang?')) return;
+      try {
+        await apiRequest('/reminders/test-cron', { method: 'POST' });
+        showToast('Cron check berhasil dijalankan.', 'success');
+        loadNotifications();
+      } catch (err) {
+        showToast('Gagal menjalankan cron: ' + err.message, 'error');
+      }
+    }
+
+    async function loadNotifications() {
+      try {
+        const data = await apiRequest('/reminders');
+        allNotifs = Array.isArray(data) ? data : (data.reminders || []);
+        renderNotifications(allNotifs);
+      } catch (err) {
+        showToast('Gagal memuat notifikasi: ' + err.message, 'error');
+        document.getElementById('notifList').innerHTML = '';
+        document.getElementById('emptyState').style.display = 'block';
+      }
+    }
+
+    loadNotifications();
+  </script>
+</body>
+</html>

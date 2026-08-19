@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tambah Kendaraan - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html" class="active"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Tambah Kendaraan</h1>
+        <a href="/vehicles.html" class="btn btn-outline btn-sm">&#8592; Kembali</a>
+      </div>
+
+      <div class="content-area">
+        <div class="card">
+          <div class="card-body">
+            <form id="vehicleForm" onsubmit="submitForm(event)">
+              <div class="form-group">
+                <label for="nopol">Nomor Polisi *</label>
+                <input type="text" id="nopol" name="nopol" required placeholder="Contoh: B 1234 CD">
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="jenis_kendaraan">Jenis Kendaraan *</label>
+                  <select id="jenis_kendaraan" name="jenis_kendaraan" required>
+                    <option value="">-- Pilih Jenis --</option>
+                    <option value="Mobil">Mobil</option>
+                    <option value="Motor">Motor</option>
+                    <option value="Truk">Truk</option>
+                    <option value="Bus">Bus</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="merk">Merk / Tipe</label>
+                  <input type="text" id="merk" name="merk" placeholder="Contoh: Toyota Avanza">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="tahun">Tahun</label>
+                  <input type="number" id="tahun" name="tahun" placeholder="Contoh: 2022" min="1900" max="2099">
+                </div>
+                <div class="form-group">
+                  <label for="warna">Warna</label>
+                  <input type="text" id="warna" name="warna" placeholder="Contoh: Putih">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="tanggal_pajak">Tanggal Jatuh Tempo Pajak *</label>
+                <input type="date" id="tanggal_pajak" name="tanggal_pajak" required>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="estimasi_pkb">Estimasi PKB (Rp)</label>
+                  <input type="number" id="estimasi_pkb" name="estimasi_pkb" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="estimasi_swdkllj">Estimasi SWDKLLJ (Rp)</label>
+                  <input type="number" id="estimasi_swdkllj" name="estimasi_swdkllj" placeholder="0" min="0">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="estimasi_biaya_lain">Estimasi Biaya Lain (Rp)</label>
+                <input type="number" id="estimasi_biaya_lain" name="estimasi_biaya_lain" placeholder="0" min="0">
+              </div>
+
+              <div class="form-group">
+                <label for="catatan">Catatan</label>
+                <textarea id="catatan" name="catatan" rows="3" placeholder="Catatan tambahan..."></textarea>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:20px">
+                <button type="submit" class="btn btn-primary" id="submitBtn">&#10003; Simpan Kendaraan</button>
+                <a href="/vehicles.html" class="btn btn-outline">Batal</a>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const user = getUser();
+    document.getElementById('userName').textContent = user?.nama || 'User';
+    document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    async function submitForm(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+
+      const form = document.getElementById('vehicleForm');
+      const formData = new FormData(form);
+      const body = {};
+
+      formData.forEach((value, key) => {
+        if (value !== '') {
+          body[key] = ['estimasi_pkb', 'estimasi_swdkllj', 'estimasi_biaya_lain', 'tahun'].includes(key)
+            ? Number(value)
+            : value;
+        }
+      });
+
+      try {
+        await apiRequest('/vehicles', {
+          method: 'POST',
+          body: JSON.stringify(body)
+        });
+        showToast('Kendaraan berhasil ditambahkan!', 'success');
+        setTimeout(() => {
+          window.location.href = '/vehicles.html';
+        }, 1000);
+      } catch (err) {
+        showToast('Gagal menyimpan: ' + err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '\u2713 Simpan Kendaraan';
+      }
+    }
+  </script>
+</body>
+</html>

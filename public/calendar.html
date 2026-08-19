@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalender - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html" class="active"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Kalender Pajak</h1>
+      </div>
+
+      <div class="content-area">
+        <div class="card">
+          <div class="cal-nav">
+            <button class="btn btn-outline btn-sm" onclick="prevMonth()">&#10094; Sebelumnya</button>
+            <h3 id="calMonthYear"></h3>
+            <button class="btn btn-outline btn-sm" onclick="nextMonth()">Selanjutnya &#10095;</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px" id="dayDetailCard" hidden>
+          <div class="card-header">
+            <h2 id="dayDetailTitle">Detail Hari</h2>
+            <button class="btn btn-outline btn-sm" onclick="closeDayDetail()">Tutup</button>
+          </div>
+          <div class="card-body" id="dayDetailBody"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const user = getUser();
+    document.getElementById('userName').textContent = user?.nama || 'User';
+    document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    const bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const hariIndo = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+    let currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+    let allVehicles = [];
+
+    async function loadVehicles() {
+      try {
+        allVehicles = await apiRequest('/vehicles');
+        renderCalendar();
+      } catch (err) {
+        showToast('Gagal memuat data: ' + err.message, 'error');
+      }
+    }
+
+    function getVehiclesForDay(day) {
+      return allVehicles.filter(v => {
+        if (!v.tanggal_pajak) return false;
+        const d = new Date(v.tanggal_pajak);
+        return d.getDate() === day && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      });
+    }
+
+    function getEventColor(v) {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const pajakDate = new Date(v.tanggal_pajak);
+      pajakDate.setHours(0,0,0,0);
+      const diffDays = Math.floor((pajakDate - today) / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) return 'red';
+      if (diffDays <= 7) return 'orange';
+      if (diffDays <= 30) return 'yellow';
+      return '';
+    }
+
+    function renderCalendar() {
+      document.getElementById('calMonthYear').textContent = bulanIndo[currentMonth] + ' ' + currentYear;
+
+      const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+      let html = '';
+      hariIndo.forEach(h => { html += '<div class="cal-header">' + h + '</div>'; });
+
+      const today = new Date();
+      const isCurrentMonth = today.getMonth() === currentMonth && today.getFullYear() === currentYear;
+
+      for (let i = 0; i < firstDay; i++) {
+        const day = daysInPrevMonth - firstDay + i + 1;
+        html += '<div class="cal-day other-month"><div class="day-number">' + day + '</div></div>';
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const isToday = isCurrentMonth && day === today.getDate();
+        const cls = isToday ? 'cal-day today' : 'cal-day';
+        const vehicles = getVehiclesForDay(day);
+
+        html += '<div class="' + cls + '" style="cursor:pointer" onclick="showDayDetail(' + day + ')">';
+        html += '<div class="day-number">' + day + '</div>';
+
+        vehicles.forEach(v => {
+          const color = getEventColor(v);
+          const bgStyle = color === 'red' ? 'background:#fee2e2;color:#dc2626' :
+                          color === 'orange' ? 'background:#ffedd5;color:#ea580c' :
+                          color === 'yellow' ? 'background:#fef9c3;color:#ca8a04' :
+                          'background:#fee2e2;color:#dc2626';
+          html += '<div class="cal-event" style="' + bgStyle + '">' + v.nopol + '</div>';
+        });
+
+        html += '</div>';
+      }
+
+      const totalCells = firstDay + daysInMonth;
+      const remaining = (7 - (totalCells % 7)) % 7;
+      for (let i = 1; i <= remaining; i++) {
+        html += '<div class="cal-day other-month"><div class="day-number">' + i + '</div></div>';
+      }
+
+      document.getElementById('calendarGrid').innerHTML = html;
+    }
+
+    function showDayDetail(day) {
+      const vehicles = getVehiclesForDay(day);
+      const card = document.getElementById('dayDetailCard');
+      const title = document.getElementById('dayDetailTitle');
+      const body = document.getElementById('dayDetailBody');
+
+      title.textContent = hariIndo[new Date(currentYear, currentMonth, day).getDay()] + ', ' + day + ' ' + bulanIndo[currentMonth] + ' ' + currentYear;
+
+      if (vehicles.length === 0) {
+        body.innerHTML = '<div class="empty-state"><div class="icon">&#128197;</div><p>Tidak ada pajak jatuh tempo pada hari ini</p></div>';
+      } else {
+        body.innerHTML = '<table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
+          vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi) + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
+          '</tbody></table>';
+      }
+
+      card.hidden = false;
+      card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closeDayDetail() {
+      document.getElementById('dayDetailCard').hidden = true;
+    }
+
+    function prevMonth() {
+      currentMonth--;
+      if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      currentMonth++;
+      if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+      renderCalendar();
+    }
+
+    loadVehicles();
+  </script>
+</body>
+</html>

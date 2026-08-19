@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html" class="active"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Dashboard</h1>
+        <span id="todayDate" style="font-size:0.8rem;color:var(--gray-500)"></span>
+      </div>
+
+      <div class="content-area">
+        <div class="stats-grid" id="statsGrid">
+          <div class="stat-card">
+            <div class="stat-icon blue">&#128663;</div>
+            <div>
+              <div class="stat-value" id="statTotal">0</div>
+              <div class="stat-label">Total Kendaraan</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon yellow">&#9888;&#65039;</div>
+            <div>
+              <div class="stat-value" id="statExpiring">0</div>
+              <div class="stat-label">Jatuh Tempo (30 Hari)</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">&#128308;</div>
+            <div>
+              <div class="stat-value" id="statExpired">0</div>
+              <div class="stat-label">Lewat Tempo</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">&#128176;</div>
+            <div>
+              <div class="stat-value" id="statBiaya">Rp 0</div>
+              <div class="stat-label">Estimasi Biaya (30 Hari)</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="card" style="grid-column: span 2">
+            <div class="card-header">
+              <h2>&#9888;&#65039; Kendaraan Mendesak</h2>
+              <a href="/vehicles.html" class="btn btn-outline btn-sm">Lihat Semua</a>
+            </div>
+            <div class="card-body" id="urgentList">
+              <div class="empty-state">
+                <div class="icon">&#10003;</div>
+                <p>Semua pajak kendaraan dalam kondisi aman</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">
+            <h2>&#128197; Pajak Jatuh Tempo Bulan Ini</h2>
+          </div>
+          <div class="table-wrapper" id="monthlyTable">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nopol</th>
+                  <th>Jenis</th>
+                  <th>Merk</th>
+                  <th>Jatuh Tempo</th>
+                  <th>Estimasi</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyBody">
+              </tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="monthlyEmpty" style="display:none">
+            <div class="icon">&#128197;</div>
+            <p>Tidak ada pajak jatuh tempo bulan ini</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const user = getUser();
+    document.getElementById('userName').textContent = user?.nama || 'User';
+    document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
+
+    const today = new Date();
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('todayDate').textContent = today.toLocaleDateString('id-ID', options);
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    async function loadDashboard() {
+      try {
+        const stats = await apiRequest('/vehicles/stats');
+        document.getElementById('statTotal').textContent = stats.total_kendaraan;
+        document.getElementById('statExpiring').textContent = stats.pajak_30_hari;
+        document.getElementById('statExpired').textContent = stats.pajak_lewat;
+        document.getElementById('statBiaya').textContent = formatRupiah(stats.estimasi_biaya_30_hari);
+      } catch (err) {
+        showToast('Gagal memuat statistik: ' + err.message, 'error');
+      }
+
+      try {
+        const vehicles = await apiRequest('/vehicles');
+        const urgent = vehicles.filter(v => v.status === 'kritis' || v.status === 'mendesak' || v.status === 'lewat');
+        const urgentEl = document.getElementById('urgentList');
+
+        if (urgent.length === 0) {
+          urgentEl.innerHTML = '<div class="empty-state"><div class="icon">&#10003;</div><p>Semua pajak kendaraan dalam kondisi aman</p></div>';
+        } else {
+          urgentEl.innerHTML = urgent.map(v => `
+            <div class="notif-item">
+              <div class="notif-icon ${v.status === 'lewat' ? 'failed' : 'sent'}">${v.status === 'lewat' ? '&#128308;' : '&#9888;&#65039;'}</div>
+              <div class="notif-text">
+                <div class="title">${v.nopol} - ${v.jenis_kendaraan} ${v.merk || ''}</div>
+                <div class="desc">Jatuh tempo: ${formatDateFull(v.tanggal_pajak)} | Estimasi: ${formatRupiah(v.total_estimasi)}</div>
+              </div>
+              <span class="badge badge-${v.status}">${v.status_label}</span>
+            </div>
+          `).join('');
+        }
+
+        const now = new Date();
+        const thisMonth = vehicles.filter(v => {
+          const d = new Date(v.tanggal_pajak);
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+
+        const monthlyBody = document.getElementById('monthlyBody');
+        const monthlyEmpty = document.getElementById('monthlyEmpty');
+        const monthlyTable = document.getElementById('monthlyTable');
+
+        if (thisMonth.length === 0) {
+          monthlyBody.innerHTML = '';
+          monthlyEmpty.style.display = 'block';
+          monthlyTable.style.display = 'none';
+        } else {
+          monthlyEmpty.style.display = 'none';
+          monthlyTable.style.display = 'block';
+          monthlyBody.innerHTML = thisMonth.map(v => `
+            <tr>
+              <td class="font-mono font-bold">${v.nopol}</td>
+              <td>${v.jenis_kendaraan}</td>
+              <td>${v.merk || '-'}</td>
+              <td>${formatDateFull(v.tanggal_pajak)}</td>
+              <td>${formatRupiah(v.total_estimasi)}</td>
+              <td><span class="badge badge-${v.status}">${v.status_label}</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        showToast('Gagal memuat data kendaraan: ' + err.message, 'error');
+      }
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>

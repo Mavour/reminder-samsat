@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Penerima - Reminder Samsat</title>
+  <link rel="icon" type="image/png" href="/assets/logo.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header" style="display:flex;align-items:center;gap:10px">
+        <img src="/assets/logo.png" alt="Logo" style="width:38px;height:38px;border-radius:8px;object-fit:contain">
+        <div>
+          <h2>Reminder Samsat</h2>
+          <small>Pajak Kendaraan Dinas</small>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
+        <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
+        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
+        <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
+        <a href="/recipients.html" class="active"><span class="icon">&#128101;</span> Penerima</a>
+        <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div class="user-name" id="userName">Admin</div>
+            <div class="user-role" id="userRole">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" style="width:100%" onclick="logout()">Keluar</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="topbar">
+        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        <h1>Penerima Reminder</h1>
+      </div>
+
+      <div class="content-area">
+        <div class="card mb-2">
+          <div class="card-header">
+            <h2>&#10133; Tambah Penerima</h2>
+          </div>
+          <div class="card-body">
+            <form id="addRecipientForm" onsubmit="addRecipient(event)">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="nama">Nama Lengkap *</label>
+                  <input type="text" id="nama" required placeholder="Contoh: Bapak/Ibu Kabag Umum">
+                </div>
+                <div class="form-group">
+                  <label for="no_hp">No. HP WhatsApp *</label>
+                  <input type="tel" id="no_hp" required placeholder="Contoh: 08123456789">
+                </div>
+                <div class="form-group">
+                  <label for="jabatan">Jabatan</label>
+                  <input type="text" id="jabatan" placeholder="Contoh: Kepala Bagian Umum">
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width:auto;margin-top:8px" id="addBtn">+ Tambah</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>&#128101; Daftar Penerima Reminder</h2>
+            <span style="font-size:0.8rem;color:var(--gray-500)" id="recipientCount"></span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>No. HP</th>
+                  <th>Jabatan</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="recipientBody">
+                <tr><td colspan="4" class="text-center" style="padding:40px"><span class="loading-spinner"></span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="emptyState" style="display:none">
+            <div class="icon">&#128101;</div>
+            <p>Belum ada penerima. Tambahkan penerima di form atas.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="editModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Penerima</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm" onsubmit="saveEdit(event)">
+          <input type="hidden" id="editId">
+          <div class="form-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="editNama" required>
+          </div>
+          <div class="form-group">
+            <label>No. HP WhatsApp</label>
+            <input type="tel" id="editNoHp" required>
+          </div>
+          <div class="form-group">
+            <label>Jabatan</label>
+            <input type="text" id="editJabatan">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeEditModal()">Batal</button>
+        <button class="btn btn-primary btn-sm" style="width:auto" onclick="document.getElementById('editForm').requestSubmit()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('Not authenticated');
+
+    const user = getUser();
+    document.getElementById('userName').textContent = user?.nama || 'User';
+    document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
+
+    let allRecipients = [];
+
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('open');
+      document.getElementById('sidebarOverlay').classList.toggle('open');
+    }
+    document.getElementById('sidebarOverlay').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('sidebarOverlay').classList.remove('open');
+    });
+
+    function logout() {
+      clearAuth();
+      window.location.href = '/';
+    }
+
+    function renderRecipients(recipients) {
+      const tbody = document.getElementById('recipientBody');
+      const emptyState = document.getElementById('emptyState');
+      const countEl = document.getElementById('recipientCount');
+
+      countEl.textContent = recipients.length > 0 ? `${recipients.length} penerima aktif` : '';
+
+      if (recipients.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tbody.innerHTML = recipients.map(r => `
+        <tr>
+          <td>${r.nama}</td>
+          <td class="font-mono">${r.no_hp}</td>
+          <td>${r.jabatan || '-'}</td>
+          <td>
+            <div class="actions-cell">
+              <button class="btn btn-outline btn-sm" onclick="editRecipient(${r.id})" title="Edit">&#9998;</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteRecipient(${r.id}, '${r.nama.replace(/'/g, "&#39;")}')" title="Hapus">&#128465;</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function addRecipient(e) {
+      e.preventDefault();
+      const btn = document.getElementById('addBtn');
+      btn.disabled = true;
+
+      try {
+        await apiRequest('/recipients', {
+          method: 'POST',
+          body: JSON.stringify({
+            nama: document.getElementById('nama').value.trim(),
+            no_hp: document.getElementById('no_hp').value.trim(),
+            jabatan: document.getElementById('jabatan').value.trim() || null
+          })
+        });
+        showToast('Penerima berhasil ditambahkan.', 'success');
+        e.target.reset();
+        loadRecipients();
+      } catch (err) {
+        showToast('Gagal menambah: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function editRecipient(id) {
+      const r = allRecipients.find(x => x.id === id);
+      if (!r) return;
+      document.getElementById('editId').value = r.id;
+      document.getElementById('editNama').value = r.nama || '';
+      document.getElementById('editNoHp').value = r.no_hp || '';
+      document.getElementById('editJabatan').value = r.jabatan || '';
+      document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+    }
+
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) closeEditModal();
+    });
+
+    async function saveEdit(e) {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      try {
+        await apiRequest(`/recipients/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            nama: document.getElementById('editNama').value.trim(),
+            no_hp: document.getElementById('editNoHp').value.trim(),
+            jabatan: document.getElementById('editJabatan').value.trim() || null
+          })
+        });
+        showToast('Penerima berhasil diperbarui.', 'success');
+        closeEditModal();
+        loadRecipients();
+      } catch (err) {
+        showToast('Gagal memperbarui: ' + err.message, 'error');
+      }
+    }
+
+    async function deleteRecipient(id, nama) {
+      if (!confirm(`Hapus penerima "${nama}"?`)) return;
+      try {
+        await apiRequest(`/recipients/${id}`, { method: 'DELETE' });
+        showToast('Penerima berhasil dihapus.', 'success');
+        loadRecipients();
+      } catch (err) {
+        showToast('Gagal menghapus: ' + err.message, 'error');
+      }
+    }
+
+    async function loadRecipients() {
+      try {
+        allRecipients = await apiRequest('/recipients');
+        renderRecipients(allRecipients);
+      } catch (err) {
+        showToast('Gagal memuat data: ' + err.message, 'error');
+      }
+    }
+
+    loadRecipients();
+  </script>
+</body>
+</html>
