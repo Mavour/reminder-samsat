@@ -108,3 +108,15 @@ function formatDateFull(dateStr) {
   const date = new Date(dateStr);
   return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
 }
+
+function gantiPlatBadge(v) {
+  if (!v.next_ganti_plat) return '';
+  const cls = v.ganti_plat_due_this_year ? 'badge-kritis' : 'badge-warning';
+  const title = v.ganti_plat_due_this_year
+    ? 'Ganti plat berikutnya: ' + v.next_ganti_plat
+    : 'Perkiraan tahun ganti plat berikutnya';
+  const label = v.ganti_plat_due_this_year
+    ? 'Ganti Plat Tahun Ini'
+    : 'Ganti Plat ' + v.next_ganti_plat;
+  return ` <span class="badge ${cls}" title="${title}">${label}</span>`;
+}

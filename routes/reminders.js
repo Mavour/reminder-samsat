@@ -3,6 +3,7 @@ const { getDb } = require('../database/init');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
 const { sendWhatsAppBroadcast, buildReminderMessage } = require('../services/fonnte');
 const { checkAndSendReminders } = require('../services/scheduler');
+const { computeGantiPlat } = require('../services/gantiPlat');
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.get('/', authMiddleware, (req, res) => {
 
   if (req.user.role === 'admin') {
     notifs = db.prepare(`
-      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk
+      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk, v.tahun
       FROM notifications n
       LEFT JOIN vehicles v ON n.vehicle_id = v.id
       ORDER BY n.sent_at DESC
@@ -20,7 +21,7 @@ router.get('/', authMiddleware, (req, res) => {
     `).all();
   } else {
     notifs = db.prepare(`
-      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk
+      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk, v.tahun
       FROM notifications n
       LEFT JOIN vehicles v ON n.vehicle_id = v.id
       WHERE v.user_id = ?
@@ -28,6 +29,9 @@ router.get('/', authMiddleware, (req, res) => {
       LIMIT 100
     `).all(req.user.id);
   }
+
+  const currentYear = new Date().getFullYear();
+  notifs = notifs.map(n => ({ ...n, ...computeGantiPlat(n.tahun, currentYear) }));
 
   res.json(notifs);
 });

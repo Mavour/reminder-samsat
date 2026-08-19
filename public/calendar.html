@@ -200,8 +200,8 @@
         body.innerHTML = '<div class="empty-state"><div class="icon">&#128197;</div><p>Tidak ada pajak jatuh tempo pada hari ini</p></div>';
       } else {
         body.innerHTML = '<div style="margin-bottom:12px;color:var(--gray-500);font-size:0.85rem">&#128663; ' + vehicles.length + ' kendaraan jatuh tempo pada hari ini</div>' +
-          '<div class="table-wrapper"><table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
-          vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi) + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
+          '<div class="table-wrapper"><table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Ganti Plat</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
+          vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + (v.next_ganti_plat ? '<span class="badge ' + (v.ganti_plat_due_this_year ? 'badge-kritis' : 'badge-warning') + '">' + (v.ganti_plat_due_this_year ? 'Ganti Plat Tahun Ini' : 'Ganti Plat ' + v.next_ganti_plat) + '</span>' : '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi) + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
           '</tbody></table></div>';
       }
 

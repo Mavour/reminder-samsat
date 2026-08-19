@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database/init');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { computeGantiPlat } = require('../services/gantiPlat');
 
 const router = express.Router();
 
@@ -27,10 +28,13 @@ router.get('/', authMiddleware, (req, res) => {
   }
 
   const now = new Date();
+  const currentYear = now.getFullYear();
   vehicles = vehicles.map(v => {
     const pajakDate = new Date(v.tanggal_pajak);
     const diffTime = pajakDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const { next_ganti_plat, ganti_plat_due_this_year } = computeGantiPlat(v.tahun, currentYear);
 
     let status = 'aman';
     let status_label = 'Aman';
@@ -49,7 +53,7 @@ router.get('/', authMiddleware, (req, res) => {
       status_label = 'Perlu Perhatian (H-' + diffDays + ')';
     }
 
-    return { ...v, status, status_label, days_remaining: diffDays };
+    return { ...v, status, status_label, days_remaining: diffDays, next_ganti_plat, ganti_plat_due_this_year };
   });
 
   res.json(vehicles);

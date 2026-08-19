@@ -177,7 +177,7 @@
           <div class="notif-item" style="cursor:pointer" data-notif-id="${n.id}" onclick="showDetailById(${n.id})">
             <div class="notif-icon ${statusClass}">${getTypeIcon(n.type)}</div>
             <div class="notif-text">
-              <div class="title">${n.nopol || '-'} <span class="badge badge-outline" style="font-size:0.65rem;background:var(--gray-100);color:var(--gray-600)">${getTypeLabel(n.type)}</span></div>
+              <div class="title">${n.nopol || '-'}${gantiPlatBadge(n)} <span class="badge badge-outline" style="font-size:0.65rem;background:var(--gray-100);color:var(--gray-600)">${getTypeLabel(n.type)}</span></div>
               <div class="desc">${messagePreview}</div>
             </div>
             <div style="text-align:right">
@@ -346,9 +346,12 @@
 
       title.textContent = `Notifikasi ${notif.nopol || ''}`;
       body.innerHTML = `
-        <div style="margin-bottom:16px">
-          <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Nopol</div>
-          <div class="font-mono font-bold" style="font-size:1.1rem">${notif.nopol || '-'}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px">
+          <div>
+            <div style="font-size:0.8rem;color:var(--gray-500);margin-bottom:4px">Nopol</div>
+            <div class="font-mono font-bold" style="font-size:1.1rem">${notif.nopol || '-'}</div>
+          </div>
+          <div style="flex-shrink:0">${gantiPlatBadge(notif)}</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
           <div>

@@ -139,7 +139,7 @@
         <tr>
           <td class="font-mono font-bold">${v.nopol}</td>
           <td>${v.jenis_kendaraan}</td>
-          <td>${v.merk || '-'} ${v.tahun || ''}</td>
+          <td>${v.merk || '-'} ${v.tahun || ''}${gantiPlatBadge(v)}</td>
           <td>${v.user_nama || '-'}</td>
           <td>${formatDateFull(v.tanggal_pajak)}</td>
           <td>${formatRupiah(v.total_estimasi)}</td>
