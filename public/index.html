@@ -9,8 +9,14 @@
 </head>
 <body>
   <div class="login-wrapper">
+    <div class="login-decor d1"></div>
+    <div class="login-decor d2"></div>
+    <div class="login-decor d3"></div>
+
     <div class="login-card">
-      <div class="logo"><img src="/assets/logo.png" alt="Logo" style="width:76px;height:76px;object-fit:contain"></div>
+      <div class="logo">
+        <div class="logo-badge"><img src="/assets/logo.png" alt="Logo"></div>
+      </div>
       <h1>Reminder Samsat</h1>
       <p class="subtitle">Sistem Pengingat Pajak Kendaraan Dinas</p>
 
@@ -23,9 +29,11 @@
           <label for="password">Password</label>
           <input type="password" id="password" placeholder="Masukkan password" required>
         </div>
-        <div id="loginError" style="color: var(--danger); font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
+        <div id="loginError" style="font-size: 0.8rem; margin-bottom: 12px; display: none;"></div>
         <button type="submit" class="btn btn-primary">Masuk</button>
       </form>
+
+      <p class="login-foot">&copy; 2026 Reminder Samsat</p>
     </div>
   </div>
 

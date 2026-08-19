@@ -8,6 +8,13 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="bg-blobs">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+  </div>
+
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div class="app-layout">
@@ -54,16 +61,21 @@
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
         </div>
-
-        <div class="card" style="margin-top:16px" id="dayDetailCard" hidden>
-          <div class="card-header">
-            <h2 id="dayDetailTitle">Detail Hari</h2>
-            <button class="btn btn-outline btn-sm" onclick="closeDayDetail()">Tutup</button>
-          </div>
-          <div class="card-body" id="dayDetailBody"></div>
-        </div>
       </div>
     </main>
+  </div>
+
+  <div class="modal-overlay" id="dayModal" style="display:none">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3 id="dayDetailTitle">Detail Hari</h3>
+        <button class="modal-close" onclick="closeDayDetail()">&times;</button>
+      </div>
+      <div class="modal-body" id="dayDetailBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closeDayDetail()">Tutup</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast-container" id="toastContainer"></div>
@@ -178,7 +190,7 @@
 
     function showDayDetail(day) {
       const vehicles = getVehiclesForDay(day);
-      const card = document.getElementById('dayDetailCard');
+      const modal = document.getElementById('dayModal');
       const title = document.getElementById('dayDetailTitle');
       const body = document.getElementById('dayDetailBody');
 
@@ -187,18 +199,26 @@
       if (vehicles.length === 0) {
         body.innerHTML = '<div class="empty-state"><div class="icon">&#128197;</div><p>Tidak ada pajak jatuh tempo pada hari ini</p></div>';
       } else {
-        body.innerHTML = '<table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
+        body.innerHTML = '<div style="margin-bottom:12px;color:var(--gray-500);font-size:0.85rem">&#128663; ' + vehicles.length + ' kendaraan jatuh tempo pada hari ini</div>' +
+          '<div class="table-wrapper"><table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
           vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi) + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
-          '</tbody></table>';
+          '</tbody></table></div>';
       }
 
-      card.hidden = false;
-      card.scrollIntoView({ behavior: 'smooth' });
+      modal.style.display = 'flex';
     }
 
     function closeDayDetail() {
-      document.getElementById('dayDetailCard').hidden = true;
+      document.getElementById('dayModal').style.display = 'none';
     }
+
+    document.getElementById('dayModal').addEventListener('click', function(e) {
+      if (e.target === this) closeDayDetail();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeDayDetail();
+    });
 
     function prevMonth() {
       currentMonth--;

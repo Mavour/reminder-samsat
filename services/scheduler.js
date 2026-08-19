@@ -3,7 +3,7 @@ const { getDb } = require('../database/init');
 const { sendWhatsAppBroadcast, buildReminderMessage } = require('./fonnte');
 
 const DEFAULT_REMINDER_DAYS = [3, 7];
-const KANTOR_NAMA = process.env.KANTOR_NAMA || 'Satker Pengelola Kendaraan Dinas';
+const KANTOR_NAMA = process.env.KANTOR_NAMA || 'Bagian Perlengkapan Kejaksaan Negeri Badung';
 
 function getReminderDays() {
   const db = getDb();

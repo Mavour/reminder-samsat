@@ -140,7 +140,7 @@ function buildReminderMessage(vehicle, daysRemaining, kantorNama, isLast) {
     ? 'Dimohon untuk segera mengurus pembayaran guna menghindari denda.'
     : 'Mohon untuk dapat segera diproses pembayarannya.';
 
-  const kantor = kantorNama || process.env.KANTOR_NAMA || 'Satker Pengelola Kendaraan Dinas';
+  const kantor = kantorNama || process.env.KANTOR_NAMA || 'Bagian Perlengkapan Kejaksaan Negeri Badung';
 
   return `🚗 *PENGINGAT PAJAK KENDARAAN DINAS*
 
