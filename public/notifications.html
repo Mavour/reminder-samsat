@@ -237,6 +237,7 @@
       'PKB': '&#128176;',
       'SWDKLLJ': '&#128737;',
       'Lain-lain': '&#129534;',
+      'Ganti Plat': '&#128737;',
       'Total': '&#128181;'
     };
     const FIELD_PREFIX = {
@@ -389,7 +390,8 @@
     });
 
     async function testCron() {
-      if (!confirm('Jalankan pengecekan cron sekarang?')) return;
+      const ok = await showConfirm('Jalankan pengecekan cron sekarang?', { title: 'Jalankan Cron', confirmText: 'Jalankan' });
+      if (!ok) return;
       try {
         await apiRequest('/reminders/test-cron', { method: 'POST' });
         showToast('Cron check berhasil dijalankan.', 'success');

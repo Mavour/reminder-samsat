@@ -1,4 +1,5 @@
 const fetch = require('node-fetch');
+const { enrichVehicle } = require('./gantiPlat');
 
 const FONNTE_API = 'https://api.fonnte.com/send';
 
@@ -142,6 +143,20 @@ function buildReminderMessage(vehicle, daysRemaining, kantorNama, isLast) {
 
   const kantor = kantorNama || process.env.KANTOR_NAMA || 'Bagian Perlengkapan Kejaksaan Negeri Badung';
 
+  const enriched = enrichVehicle(vehicle, new Date().getFullYear());
+
+  const estLines = [
+    `▪️ PKB : ${formatRupiah(vehicle.estimasi_pkb)}`,
+    `▪️ SWDKLLJ : ${formatRupiah(vehicle.estimasi_swdkllj)}`,
+    `▪️ Lain-lain : ${formatRupiah(vehicle.estimasi_biaya_lain)}`
+  ];
+
+  if (enriched.biaya_ganti_plat > 0) {
+    estLines.push(`▪️ Ganti Plat : ${formatRupiah(enriched.biaya_ganti_plat)}`);
+  }
+
+  estLines.push(`▪️ *Total* : *${formatRupiah(enriched.total_estimasi_lengkap)}*`);
+
   return `🚗 *PENGINGAT PAJAK KENDARAAN DINAS*
 
 Yth. Bapak/Ibu,
@@ -156,12 +171,9 @@ Dengan hormat, kami mengingatkan bahwa pajak kendaraan dinas berikut akan jatuh 
 ⏰ Jatuh Tempo : *${formatTanggalIndo(vehicle.tanggal_pajak)}*
 
 💰 *Estimasi Biaya:*
-▪️ PKB : ${formatRupiah(vehicle.estimasi_pkb)}
-▪️ SWDKLLJ : ${formatRupiah(vehicle.estimasi_swdkllj)}
-▪️ Lain-lain : ${formatRupiah(vehicle.estimasi_biaya_lain)}
-▪️ *Total* : *${formatRupiah(vehicle.total_estimasi)}*
+${estLines.join('\n')}
 
-⚠️ *${action}*
+${enriched.biaya_ganti_plat > 0 ? '🪪 *Termasuk biaya penggantian plat nomor* (tahun ganti plat).\n\n' : ''}⚠️ *${action}*
 
 Terima kasih atas perhatian dan kerjasamanya.
 Salam,

@@ -1,7 +1,8 @@
 const express = require('express');
 const { getDb } = require('../database/init');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
-const { computeGantiPlat } = require('../services/gantiPlat');
+const { enrichVehicle } = require('../services/gantiPlat');
+const { witaNow, witaDateString, diffDaysFromToday } = require('../services/wita');
 
 const router = express.Router();
 
@@ -27,14 +28,12 @@ router.get('/', authMiddleware, (req, res) => {
     `).all(req.user.id);
   }
 
-  const now = new Date();
+  const now = witaNow();
   const currentYear = now.getFullYear();
   vehicles = vehicles.map(v => {
-    const pajakDate = new Date(v.tanggal_pajak);
-    const diffTime = pajakDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = diffDaysFromToday(v.tanggal_pajak);
 
-    const { next_ganti_plat, ganti_plat_due_this_year } = computeGantiPlat(v.tahun, currentYear);
+    const enriched = enrichVehicle(v, currentYear);
 
     let status = 'aman';
     let status_label = 'Aman';
@@ -53,7 +52,7 @@ router.get('/', authMiddleware, (req, res) => {
       status_label = 'Perlu Perhatian (H-' + diffDays + ')';
     }
 
-    return { ...v, status, status_label, days_remaining: diffDays, next_ganti_plat, ganti_plat_due_this_year };
+    return { ...enriched, status, status_label, days_remaining: diffDays };
   });
 
   res.json(vehicles);
@@ -61,15 +60,18 @@ router.get('/', authMiddleware, (req, res) => {
 
 router.get('/stats', authMiddleware, (req, res) => {
   const db = getDb();
-  const now = new Date();
-  const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const todayStr = witaDateString();
+  const in30Str = witaDateString(30);
 
   let whereClause = req.user.role === 'admin' ? '' : 'AND v.user_id = ' + req.user.id;
 
   const total = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 ${whereClause}`).get().count;
-  const expiring = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= date('now') AND v.tanggal_pajak <= date('+30 days') ${whereClause}`).get().count;
-  const expired = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak < date('now') ${whereClause}`).get().count;
-  const totalBiaya = db.prepare(`SELECT COALESCE(SUM(total_estimasi), 0) as total FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= date('now') AND v.tanggal_pajak <= date('+30 days') ${whereClause}`).get().total;
+  const expiring = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= ? AND v.tanggal_pajak <= ? ${whereClause}`).get(todayStr, in30Str).count;
+  const expired = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak < ? ${whereClause}`).get(todayStr).count;
+
+  const currentYear = witaNow().getFullYear();
+  const in30Vehicles = db.prepare(`SELECT v.* FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= ? AND v.tanggal_pajak <= ? ${whereClause}`).all(todayStr, in30Str);
+  const totalBiaya = in30Vehicles.reduce((sum, v) => sum + enrichVehicle(v, currentYear).total_estimasi_lengkap, 0);
 
   res.json({
     total_kendaraan: total,
@@ -96,14 +98,14 @@ router.get('/:id', authMiddleware, (req, res) => {
     return res.status(403).json({ error: 'Akses ditolak.' });
   }
 
-  res.json(vehicle);
+  res.json(enrichVehicle(vehicle, witaNow().getFullYear()));
 });
 
 router.post('/', authMiddleware, (req, res) => {
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain,
-    no_hp_penerima, catatan, user_id
+    catatan, user_id
   } = req.body;
 
   if (!nopol || !jenis_kendaraan || !tanggal_pajak) {
@@ -118,9 +120,9 @@ router.post('/', authMiddleware, (req, res) => {
 
   const db = getDb();
   const result = db.prepare(`
-    INSERT INTO vehicles (user_id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain, total_estimasi, no_hp_penerima, catatan)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(assignedUserId, nopol.toUpperCase(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, swdkllj, biayaLain, total, no_hp_penerima || null, catatan || null);
+    INSERT INTO vehicles (user_id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain, total_estimasi, catatan)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(assignedUserId, nopol.toUpperCase(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, swdkllj, biayaLain, total, catatan || null);
 
   res.status(201).json({
     message: 'Kendaraan berhasil ditambahkan.',
@@ -143,7 +145,7 @@ router.put('/:id', authMiddleware, (req, res) => {
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain,
-    no_hp_penerima, catatan, status_aktif, user_id
+    catatan, status_aktif, user_id
   } = req.body;
 
   const pkb = parseFloat(estimasi_pkb) || vehicle.estimasi_pkb;
@@ -163,7 +165,6 @@ router.put('/:id', authMiddleware, (req, res) => {
       estimasi_swdkllj = ?,
       estimasi_biaya_lain = ?,
       total_estimasi = ?,
-      no_hp_penerima = COALESCE(?, no_hp_penerima),
       catatan = COALESCE(?, catatan),
       status_aktif = COALESCE(?, status_aktif),
       user_id = COALESCE(?, user_id),
@@ -172,7 +173,7 @@ router.put('/:id', authMiddleware, (req, res) => {
   `).run(
     nopol ? nopol.toUpperCase() : null, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, pkb, swdkllj, biayaLain, total,
-    no_hp_penerima, catatan, status_aktif, user_id, req.params.id
+    catatan, status_aktif, user_id, req.params.id
   );
 
   res.json({ message: 'Data kendaraan berhasil diperbarui.' });

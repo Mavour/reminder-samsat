@@ -43,7 +43,6 @@ function initDatabase() {
       estimasi_swdkllj DECIMAL(12,2) DEFAULT 0,
       estimasi_biaya_lain DECIMAL(12,2) DEFAULT 0,
       total_estimasi DECIMAL(12,2) DEFAULT 0,
-      no_hp_penerima TEXT,
       status_aktif INTEGER DEFAULT 1,
       catatan TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

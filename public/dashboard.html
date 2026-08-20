@@ -140,7 +140,7 @@
     document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
     document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
 
-    const today = new Date();
+    const today = witaNow();
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('todayDate').textContent = today.toLocaleDateString('id-ID', options);
 
@@ -182,17 +182,17 @@
               <div class="notif-icon ${v.status === 'lewat' ? 'failed' : 'sent'}">${v.status === 'lewat' ? '&#128308;' : '&#9888;&#65039;'}</div>
               <div class="notif-text">
                 <div class="title">${v.nopol} - ${v.jenis_kendaraan} ${v.merk || ''}</div>
-                <div class="desc">Jatuh tempo: ${formatDateFull(v.tanggal_pajak)} | Estimasi: ${formatRupiah(v.total_estimasi)}</div>
+                <div class="desc">Jatuh tempo: ${formatDateFull(v.tanggal_pajak)} | Estimasi: ${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? ' (termasuk ganti plat)' : ''}</div>
               </div>
               <span class="badge badge-${v.status}">${v.status_label}</span>
             </div>
           `).join('');
         }
 
-        const now = new Date();
+        const t = witaNow();
         const thisMonth = vehicles.filter(v => {
-          const d = new Date(v.tanggal_pajak);
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+          const p = parseTanggalPajak(v.tanggal_pajak);
+          return p.m === t.getMonth() && p.y === t.getFullYear();
         });
 
         const monthlyBody = document.getElementById('monthlyBody');
@@ -212,7 +212,7 @@
               <td>${v.jenis_kendaraan}</td>
               <td>${v.merk || '-'}</td>
               <td>${formatDateFull(v.tanggal_pajak)}</td>
-              <td>${formatRupiah(v.total_estimasi)}</td>
+              <td>${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? '<div style="font-size:0.72rem;color:var(--gray-500)">termasuk ganti plat</div>' : ''}</td>
               <td><span class="badge badge-${v.status}">${v.status_label}</span></td>
             </tr>
           `).join('');

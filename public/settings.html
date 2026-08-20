@@ -181,13 +181,17 @@
             <div class="card-body">
               <form id="reminderForm" onsubmit="saveReminderSettings(event)">
                 <p style="font-size:0.9rem;color:var(--gray-600);margin-bottom:12px">
-                  Atur berapa hari sebelum jatuh tempo pajak reminder WhatsApp dikirim otomatis (setiap jam 08:00 WIB).
+                  Atur berapa hari sebelum jatuh tempo pajak reminder WhatsApp dikirim otomatis (setiap jam 08:00 WITA).
                   Pisahkan dengan koma, contoh: <strong>7, 3</strong> berarti kirim saat H-7 dan H-3.
                 </p>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                   <div class="form-group" style="margin-bottom:0;flex:1;min-width:200px">
                     <label for="reminderDaysInput">Hari Pengingat (H-...)</label>
                     <input type="text" id="reminderDaysInput" placeholder="Contoh: 7, 3" required>
+                  </div>
+                  <div class="form-group" style="margin-bottom:0;min-width:160px">
+                    <label for="delayInput">Jeda Antar Kendaraan (detik)</label>
+                    <input type="number" id="delayInput" min="0" max="120" placeholder="15" title="Jeda antara pengiriman tiap kendaraan saat reminder otomatis">
                   </div>
                   <button type="submit" class="btn btn-primary" style="width:auto;margin-top:20px" id="reminderBtn">Simpan</button>
                 </div>
@@ -503,7 +507,8 @@
     }
 
     async function deleteUser(id, username) {
-      if (!confirm(`Hapus pengguna "${username}"?`)) return;
+      const ok = await showConfirm('Hapus pengguna <strong>"' + escapeHtml(username) + '"</strong>? Tindakan ini tidak dapat dibatalkan.', { title: 'Hapus Pengguna', confirmText: 'Hapus', danger: true });
+      if (!ok) return;
       try {
         await apiRequest(`/auth/users/${id}`, { method: 'DELETE' });
         showToast('Pengguna berhasil dihapus.', 'success');
@@ -518,6 +523,7 @@
       try {
         const cfg = await apiRequest('/config/reminder');
         document.getElementById('reminderDaysInput').value = cfg.days.join(', ');
+        document.getElementById('delayInput').value = cfg.delay;
         document.getElementById('reminderInfo').textContent = cfg.message;
       } catch (err) {
         showToast('Gagal memuat pengaturan reminder: ' + err.message, 'error');
@@ -541,10 +547,14 @@
       try {
         const res = await apiRequest('/config/reminder', {
           method: 'PUT',
-          body: JSON.stringify({ days })
+          body: JSON.stringify({
+            days,
+            delay: document.getElementById('delayInput').value
+          })
         });
         showToast('Pengaturan reminder disimpan.', 'success');
         document.getElementById('reminderDaysInput').value = res.days.join(', ');
+        document.getElementById('delayInput').value = res.delay;
         document.getElementById('reminderInfo').textContent = res.message;
       } catch (err) {
         showToast('Gagal menyimpan: ' + err.message, 'error');

@@ -256,7 +256,8 @@
     }
 
     async function deleteRecipient(id, nama) {
-      if (!confirm(`Hapus penerima "${nama}"?`)) return;
+      const ok = await showConfirm('Hapus penerima <strong>"' + escapeHtml(nama) + '"</strong>?', { title: 'Hapus Penerima', confirmText: 'Hapus', danger: true });
+      if (!ok) return;
       try {
         await apiRequest(`/recipients/${id}`, { method: 'DELETE' });
         showToast('Penerima berhasil dihapus.', 'success');

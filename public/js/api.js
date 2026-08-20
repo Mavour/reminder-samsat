@@ -86,6 +86,53 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showConfirm(messageHtml, options = {}) {
+  return new Promise(resolve => {
+    let overlay = document.getElementById('confirmModalRoot');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'confirmModalRoot';
+      overlay.className = 'modal-overlay';
+      overlay.style.display = 'none';
+      document.body.appendChild(overlay);
+    }
+
+    const title = escapeHtml(options.title || 'Konfirmasi');
+    const confirmText = escapeHtml(options.confirmText || 'Ya');
+    const cancelText = escapeHtml(options.cancelText || 'Batal');
+    const confirmClass = options.danger ? 'btn-danger' : 'btn-primary';
+
+    overlay.innerHTML = `
+      <div class="modal">
+        <div class="modal-header">
+          <h3>${title}</h3>
+          <button class="modal-close" data-cancel="1" type="button">&times;</button>
+        </div>
+        <div class="modal-body"><p style="line-height:1.6;margin:0">${messageHtml}</p></div>
+        <div class="modal-footer">
+          <button class="btn btn-outline btn-sm" data-cancel="1" type="button">${cancelText}</button>
+          <button class="btn ${confirmClass} btn-sm" style="width:auto" data-confirm="1" type="button">${confirmText}</button>
+        </div>
+      </div>`;
+    overlay.style.display = 'flex';
+
+    const done = value => {
+      overlay.style.display = 'none';
+      overlay.innerHTML = '';
+      overlay.onclick = null;
+      resolve(value);
+    };
+
+    overlay.querySelectorAll('[data-cancel="1"]').forEach(el => el.addEventListener('click', () => done(false)));
+    overlay.querySelector('[data-confirm="1"]').addEventListener('click', () => done(true));
+    overlay.addEventListener('click', e => { if (e.target === overlay) done(false); });
+  });
+}
+
 function formatRupiah(amount) {
   if (!amount) return 'Rp 0';
   return new Intl.NumberFormat('id-ID', {
@@ -119,4 +166,16 @@ function gantiPlatBadge(v) {
     ? 'Ganti Plat Tahun Ini'
     : 'Ganti Plat ' + v.next_ganti_plat;
   return ` <span class="badge ${cls}" title="${title}">${label}</span>`;
+}
+
+const WITA_OFFSET_HOURS = 8;
+
+function witaNow() {
+  const now = new Date();
+  return new Date(now.getTime() + now.getTimezoneOffset() * 60000 + WITA_OFFSET_HOURS * 3600000);
+}
+
+function parseTanggalPajak(dateStr) {
+  const parts = String(dateStr).split('T')[0].split('-');
+  return { y: parseInt(parts[0], 10), m: parseInt(parts[1], 10) - 1, d: parseInt(parts[2], 10) };
 }

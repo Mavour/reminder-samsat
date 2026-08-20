@@ -106,7 +106,7 @@
     const bulanIndo = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
     const hariIndo = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
 
-    let currentDate = new Date();
+    let currentDate = witaNow();
     let currentMonth = currentDate.getMonth();
     let currentYear = currentDate.getFullYear();
     let allVehicles = [];
@@ -123,17 +123,17 @@
     function getVehiclesForDay(day) {
       return allVehicles.filter(v => {
         if (!v.tanggal_pajak) return false;
-        const d = new Date(v.tanggal_pajak);
-        return d.getDate() === day && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+        const p = parseTanggalPajak(v.tanggal_pajak);
+        return p.d === day && p.m === currentMonth && p.y === currentYear;
       });
     }
 
     function getEventColor(v) {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const pajakDate = new Date(v.tanggal_pajak);
-      pajakDate.setHours(0,0,0,0);
-      const diffDays = Math.floor((pajakDate - today) / (1000 * 60 * 60 * 24));
+      const p = parseTanggalPajak(v.tanggal_pajak);
+      const t = witaNow();
+      const pajakUTC = Date.UTC(p.y, p.m, p.d);
+      const todayUTC = Date.UTC(t.getFullYear(), t.getMonth(), t.getDate());
+      const diffDays = Math.round((pajakUTC - todayUTC) / (1000 * 60 * 60 * 24));
 
       if (diffDays < 0) return 'red';
       if (diffDays <= 7) return 'orange';
@@ -151,7 +151,7 @@
       let html = '';
       hariIndo.forEach(h => { html += '<div class="cal-header">' + h + '</div>'; });
 
-      const today = new Date();
+      const today = witaNow();
       const isCurrentMonth = today.getMonth() === currentMonth && today.getFullYear() === currentYear;
 
       for (let i = 0; i < firstDay; i++) {
@@ -201,7 +201,7 @@
       } else {
         body.innerHTML = '<div style="margin-bottom:12px;color:var(--gray-500);font-size:0.85rem">&#128663; ' + vehicles.length + ' kendaraan jatuh tempo pada hari ini</div>' +
           '<div class="table-wrapper"><table><thead><tr><th>Nopol</th><th>Jenis</th><th>Merk</th><th>Ganti Plat</th><th>Jatuh Tempo</th><th>Estimasi</th><th>Status</th></tr></thead><tbody>' +
-          vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + (v.next_ganti_plat ? '<span class="badge ' + (v.ganti_plat_due_this_year ? 'badge-kritis' : 'badge-warning') + '">' + (v.ganti_plat_due_this_year ? 'Ganti Plat Tahun Ini' : 'Ganti Plat ' + v.next_ganti_plat) + '</span>' : '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi) + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
+          vehicles.map(v => '<tr><td class="font-mono font-bold">' + v.nopol + '</td><td>' + v.jenis_kendaraan + '</td><td>' + (v.merk || '-') + '</td><td>' + (v.next_ganti_plat ? '<span class="badge ' + (v.ganti_plat_due_this_year ? 'badge-kritis' : 'badge-warning') + '">' + (v.ganti_plat_due_this_year ? 'Ganti Plat Tahun Ini' : 'Ganti Plat ' + v.next_ganti_plat) + '</span>' : '-') + '</td><td>' + formatDateFull(v.tanggal_pajak) + '</td><td>' + formatRupiah(v.total_estimasi_lengkap) + (v.biaya_ganti_plat > 0 ? '<div style="font-size:0.7rem;color:var(--gray-500)">termasuk ganti plat</div>' : '') + '</td><td><span class="badge badge-' + v.status + '">' + v.status_label + '</span></td></tr>').join('') +
           '</tbody></table></div>';
       }
 

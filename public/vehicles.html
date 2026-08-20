@@ -99,6 +99,26 @@
 
   <div class="toast-container" id="toastContainer"></div>
 
+  <!-- Modal Preview Reminder -->
+  <div class="modal-overlay" id="previewModal" style="display:none">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <h3>&#128065; Preview Reminder <span id="previewNopol" class="font-mono"></span></h3>
+        <button class="modal-close" onclick="closePreview()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="previewInfo" style="background:rgba(15,23,42,0.04);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:var(--gray-600);margin-bottom:14px;line-height:1.6"></div>
+        <div style="display:flex;justify-content:center;padding:6px 0 12px">
+          <div id="previewBubble" style="background:#dcf8c6;border-radius:12px;border-top-left-radius:2px;padding:14px 16px;max-width:520px;width:100%;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;box-shadow:0 2px 8px rgba(0,0,0,0.06)"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closePreview()">Tutup</button>
+        <button class="btn btn-success btn-sm" style="width:auto" id="previewSendBtn" onclick="sendFromPreview()">Kirim Sekarang &#128276;</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/api.js"></script>
   <script>
     if (!requireAuth()) throw new Error('Not authenticated');
@@ -142,12 +162,12 @@
           <td>${v.merk || '-'} ${v.tahun || ''}${gantiPlatBadge(v)}</td>
           <td>${v.user_nama || '-'}</td>
           <td>${formatDateFull(v.tanggal_pajak)}</td>
-          <td>${formatRupiah(v.total_estimasi)}</td>
+          <td>${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? '<div style="font-size:0.72rem;color:var(--gray-500)">termasuk ganti plat</div>' : ''}</td>
           <td><span class="badge badge-${v.status}">${v.status_label}</span></td>
           <td>
             <div class="actions-cell">
               <a href="/edit-vehicle.html?id=${v.id}" class="btn btn-outline btn-sm">&#9998;</a>
-              <button class="btn btn-success btn-sm" onclick="sendReminder(${v.id})" title="Kirim Reminder WA">&#128276;</button>
+              <button class="btn btn-outline btn-sm" onclick="previewReminder(${v.id})" title="Preview & Kirim">&#128065;</button>
               <button class="btn btn-danger btn-sm" onclick="deleteVehicle(${v.id}, '${v.nopol}')" title="Hapus">&#128465;</button>
             </div>
           </td>
@@ -177,18 +197,64 @@
       renderVehicles(filtered);
     }
 
-    async function sendReminder(id) {
-      if (!confirm('Kirim reminder WhatsApp sekarang?')) return;
+    let previewVehicleId = null;
+
+    function escHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function waMarkupToHtml(text) {
+      return escHtml(text)
+        .replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')
+        .replace(/_([^_\n]+)_/g, '<em>$1</em>')
+        .replace(/~([^~\n]+)~/g, '<del>$1</del>');
+    }
+
+    async function previewReminder(id) {
       try {
-        const data = await apiRequest(`/reminders/send/${id}`, { method: 'POST' });
-        showToast('Pesan reminder berhasil dikirim!', 'success');
+        const data = await apiRequest(`/reminders/preview/${id}`, { method: 'POST' });
+        previewVehicleId = id;
+
+        const v = allVehicles.find(x => x.id === id);
+        document.getElementById('previewNopol').textContent = v ? ' - ' + v.nopol : '';
+
+        const recipientList = data.recipients.length > 0
+          ? data.recipients.map(r => escHtml(r.nama) + ' (' + escHtml(r.no_hp) + ')').join(', ')
+          : '<span style="color:var(--danger);font-weight:600">Belum ada penerima aktif!</span>';
+
+        document.getElementById('previewInfo').innerHTML =
+          '<div>Konteks: <strong>H-' + data.days + '</strong> (jatuh tempo dalam ' + data.diffDays + ' hari)' + (data.isLast ? ' - pesan terakhir sebelum jatuh tempo' : '') + '</div>' +
+          '<div>Dikirim ke: ' + recipientList + '</div>';
+
+        document.getElementById('previewBubble').innerHTML = waMarkupToHtml(data.message);
+        document.getElementById('previewModal').style.display = 'flex';
+      } catch (err) {
+        showToast('Gagal memuat preview: ' + err.message, 'error');
+      }
+    }
+
+    function closePreview(e) {
+      if (e && e.target !== document.getElementById('previewModal')) return;
+      document.getElementById('previewModal').style.display = 'none';
+    }
+    document.getElementById('previewModal').addEventListener('click', closePreview);
+
+    async function sendFromPreview() {
+      if (!previewVehicleId) return;
+      const ok = await showConfirm('Kirim reminder WhatsApp sekarang?<br>Pesan dikirim ke semua penerima aktif.', { title: 'Kirim Reminder', confirmText: 'Kirim' });
+      if (!ok) return;
+      try {
+        const res = await apiRequest(`/reminders/send/${previewVehicleId}`, { method: 'POST' });
+        showToast(res.message || 'Pesan reminder berhasil dikirim!', 'success');
+        closePreview();
       } catch (err) {
         showToast('Gagal kirim: ' + err.message, 'error');
       }
     }
 
     async function deleteVehicle(id, nopol) {
-      if (!confirm(`Hapus kendaraan ${nopol}?`)) return;
+      const ok = await showConfirm('Hapus kendaraan <strong>' + escapeHtml(nopol) + '</strong>? Data tidak dapat dikembalikan.', { title: 'Hapus Kendaraan', confirmText: 'Hapus', danger: true });
+      if (!ok) return;
       try {
         await apiRequest(`/vehicles/${id}`, { method: 'DELETE' });
         showToast('Kendaraan berhasil dihapus.', 'success');

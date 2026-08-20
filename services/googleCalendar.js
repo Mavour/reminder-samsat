@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const { getDb } = require('../database/init');
+const { witaDateString } = require('./wita');
 
 let oauth2Client = null;
 
@@ -80,18 +81,19 @@ async function createCalendarEvent(vehicle) {
 
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 
-    const pajakDate = new Date(vehicle.tanggal_pajak);
+    const pajakDate = String(vehicle.tanggal_pajak).split('T')[0];
+    const endDate = witaDateString(1);
 
     const event = {
       summary: `Pajak ${vehicle.nopol} Jatuh Tempo`,
       description: `Pajak kendaraan dinas ${vehicle.nopol} (${vehicle.jenis_kendaraan}) akan jatuh tempo.\nEstimasi biaya: Rp ${vehicle.total_estimasi.toLocaleString('id-ID')}`,
       start: {
-        date: pajakDate.toISOString().split('T')[0],
-        timeZone: 'Asia/Jakarta',
+        date: pajakDate,
+        timeZone: 'Asia/Makassar',
       },
       end: {
-        date: new Date(pajakDate.getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        timeZone: 'Asia/Jakarta',
+        date: endDate,
+        timeZone: 'Asia/Makassar',
       },
       reminders: {
         useDefault: false,

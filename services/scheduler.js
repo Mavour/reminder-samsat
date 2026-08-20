@@ -1,8 +1,10 @@
 const cron = require('node-cron');
 const { getDb } = require('../database/init');
 const { sendWhatsAppBroadcast, buildReminderMessage } = require('./fonnte');
+const { witaDateString } = require('./wita');
 
 const DEFAULT_REMINDER_DAYS = [3, 7];
+const DEFAULT_WHATSAPP_DELAY = 15;
 const KANTOR_NAMA = process.env.KANTOR_NAMA || 'Bagian Perlengkapan Kejaksaan Negeri Badung';
 
 function getReminderDays() {
@@ -13,6 +15,17 @@ function getReminderDays() {
     if (days.length > 0) return [...new Set(days)].sort((a, b) => a - b);
   }
   return DEFAULT_REMINDER_DAYS;
+}
+
+function getWhatsAppDelay() {
+  const db = getDb();
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'whatsapp_delay'").get();
+  const v = parseInt(row && row.value, 10);
+  return (!isNaN(v) && v >= 0 && v <= 120) ? v : DEFAULT_WHATSAPP_DELAY;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function getActiveRecipients() {
@@ -29,11 +42,10 @@ async function checkAndSendReminders() {
   const db = getDb();
   const allDays = getReminderDays();
   const lastDay = Math.min(...allDays);
+  const todayStr = witaDateString();
 
   for (const days of allDays) {
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + days);
-    const dateStr = targetDate.toISOString().split('T')[0];
+    const dateStr = witaDateString(days);
 
     const vehicles = db.prepare(`
       SELECT v.*, u.no_hp as user_hp
@@ -43,12 +55,14 @@ async function checkAndSendReminders() {
         AND v.tanggal_pajak = ?
     `).all(dateStr);
 
-    for (const vehicle of vehicles) {
-      const today = new Date().toISOString().split('T')[0];
+    const delaySec = getWhatsAppDelay();
+
+    for (let i = 0; i < vehicles.length; i++) {
+      const vehicle = vehicles[i];
       const existingNotif = db.prepare(`
         SELECT id FROM notifications
-        WHERE vehicle_id = ? AND type = 'whatsapp_h${days}' AND date(sent_at) = ?
-      `).get(vehicle.id, today);
+        WHERE vehicle_id = ? AND type = 'whatsapp_h${days}' AND date(sent_at, '+8 hours') = ?
+      `).get(vehicle.id, todayStr);
 
       if (existingNotif) {
         console.log(`[Scheduler] Reminder H-${days} untuk ${vehicle.nopol} sudah terkirim hari ini.`);
@@ -57,10 +71,6 @@ async function checkAndSendReminders() {
 
       const recipients = getActiveRecipients();
       const phones = recipients.map(r => r.no_hp);
-
-      if (vehicle.no_hp_penerima) {
-        phones.push(vehicle.no_hp_penerima);
-      }
 
       if (phones.length === 0) {
         console.log(`[Scheduler] Tidak ada penerima untuk ${vehicle.nopol}. Skip.`);
@@ -85,6 +95,11 @@ async function checkAndSendReminders() {
       } else {
         console.log(`[Scheduler] Gagal kirim reminder H-${days} untuk ${vehicle.nopol}: ${result.error}`);
       }
+
+      if (i < vehicles.length - 1 && delaySec > 0) {
+        console.log(`[Scheduler] Jeda ${delaySec} detik sebelum kendaraan berikutnya...`);
+        await sleep(delaySec * 1000);
+      }
     }
   }
 
@@ -92,13 +107,13 @@ async function checkAndSendReminders() {
 }
 
 function startScheduler() {
-  console.log('[Scheduler] Scheduler dimulai. Cek setiap hari jam 08:00 WIB');
+  console.log('[Scheduler] Scheduler dimulai. Cek setiap hari jam 08:00 WITA');
 
   cron.schedule('0 8 * * *', async () => {
     console.log(`[Scheduler] Running at ${new Date().toISOString()}`);
     await checkAndSendReminders();
   }, {
-    timezone: 'Asia/Jakarta'
+    timezone: 'Asia/Makassar'
   });
 }
 
