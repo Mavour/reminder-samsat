@@ -76,7 +76,7 @@
                 <option value="lewat">Lewat Tempo</option>
               </select>
             </div>
-            <a href="/add-vehicle.html" class="btn btn-primary btn-sm" style="width:auto;flex-shrink:0">Tambah</a>
+            <a href="/add-vehicle.html" id="addBtnHeader" class="btn btn-primary btn-sm" style="width:auto;flex-shrink:0">Tambah</a>
           </div>
           <div class="table-wrapper">
             <table>
@@ -157,14 +157,17 @@
     function renderVehicles(vehicles) {
       const tbody = document.getElementById('vehicleBody');
       const emptyState = document.getElementById('emptyState');
+      const addBtnHeader = document.getElementById('addBtnHeader');
 
       if (vehicles.length === 0) {
         tbody.innerHTML = '';
         emptyState.style.display = 'block';
+        addBtnHeader.style.display = 'none';
         return;
       }
 
       emptyState.style.display = 'none';
+      addBtnHeader.style.display = '';
       tbody.innerHTML = vehicles.map(v => `
         <tr>
           <td class="font-mono font-bold" data-label="Nopol">${v.nopol}</td>
