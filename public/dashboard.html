@@ -15,7 +15,6 @@
     <span class="blob b4"></span>
   </div>
 
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar">
@@ -29,7 +28,6 @@
       <nav class="sidebar-nav">
         <a href="/dashboard.html" class="active"><span class="icon">&#127968;</span> Dashboard</a>
         <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
-        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
         <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
         <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
         <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
@@ -48,9 +46,21 @@
 
     <main class="main-content">
       <div class="topbar">
-        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        
         <h1>Dashboard</h1>
         <span class="topbar-date" id="todayDate"></span>
+        <div class="user-menu">
+          <button class="user-menu-btn" onclick="toggleUserMenu(event)" title="Menu Profil">
+            <img src="/assets/logo.png" alt="Avatar">
+          </button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-info">
+              <div class="user-menu-name">User</div>
+              <div class="user-menu-role"></div>
+            </div>
+            <button class="user-menu-item" onclick="logout()">&#128682; Keluar</button>
+          </div>
+        </div>
       </div>
 
       <div class="content-area">
@@ -85,8 +95,8 @@
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div class="card" style="grid-column: span 2">
+        <div>
+          <div class="card">
             <div class="card-header">
               <h2>&#9888;&#65039; Kendaraan Mendesak</h2>
               <a href="/vehicles.html" class="btn btn-outline btn-sm">Lihat Semua</a>
@@ -130,6 +140,14 @@
   </div>
 
   <div class="toast-container" id="toastContainer"></div>
+  <nav class="bottom-nav">
+    <a href="/dashboard.html" class="active"><span class="icon">&#127968;</span>Dashboard</a>
+    <a href="/vehicles.html"><span class="icon">&#128663;</span>Kendaraan</a>
+    <a href="/notifications.html"><span class="icon">&#128276;</span>Notifikasi</a>
+    <a href="/recipients.html"><span class="icon">&#128101;</span>Penerima</a>
+    <a href="/settings.html"><span class="icon">&#9881;</span>Pengaturan</a>
+  </nav>
+
 
   <script src="js/api.js"></script>
   <script>
@@ -144,14 +162,6 @@
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     document.getElementById('todayDate').textContent = today.toLocaleDateString('id-ID', options);
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
-      document.getElementById('sidebarOverlay').classList.toggle('open');
-    }
-    document.getElementById('sidebarOverlay').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebarOverlay').classList.remove('open');
-    });
 
     function logout() {
       clearAuth();
@@ -208,12 +218,12 @@
           monthlyTable.style.display = 'block';
           monthlyBody.innerHTML = thisMonth.map(v => `
             <tr>
-              <td class="font-mono font-bold">${v.nopol}</td>
-              <td>${v.jenis_kendaraan}</td>
-              <td>${v.merk || '-'}</td>
-              <td>${formatDateFull(v.tanggal_pajak)}</td>
-              <td>${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? '<div style="font-size:0.72rem;color:var(--gray-500)">termasuk ganti plat</div>' : ''}</td>
-              <td><span class="badge badge-${v.status}">${v.status_label}</span></td>
+              <td class="font-mono font-bold" data-label="Nopol">${v.nopol}</td>
+              <td data-label="Jenis">${v.jenis_kendaraan}</td>
+              <td data-label="Merk">${v.merk || '-'}</td>
+              <td data-label="Jatuh Tempo">${formatDateFull(v.tanggal_pajak)}</td>
+              <td data-label="Estimasi">${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? '<div style="font-size:0.72rem;color:var(--gray-500)">termasuk ganti plat</div>' : ''}</td>
+              <td data-label="Status"><span class="badge badge-${v.status}">${v.status_label}</span></td>
             </tr>
           `).join('');
         }

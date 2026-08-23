@@ -15,7 +15,6 @@
     <span class="blob b4"></span>
   </div>
 
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar">
@@ -29,7 +28,6 @@
       <nav class="sidebar-nav">
         <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
         <a href="/vehicles.html"><span class="icon">&#128663;</span> Kendaraan</a>
-        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
         <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
         <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
         <a href="/settings.html" class="active"><span class="icon">&#9881;</span> Pengaturan</a>
@@ -48,8 +46,20 @@
 
     <main class="main-content">
       <div class="topbar">
-        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        
         <h1>Pengaturan</h1>
+        <div class="user-menu">
+          <button class="user-menu-btn" onclick="toggleUserMenu(event)" title="Menu Profil">
+            <img src="/assets/logo.png" alt="Avatar">
+          </button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-info">
+              <div class="user-menu-name">User</div>
+              <div class="user-menu-role"></div>
+            </div>
+            <button class="user-menu-item" onclick="logout()">&#128682; Keluar</button>
+          </div>
+        </div>
       </div>
 
       <div class="content-area">
@@ -200,21 +210,6 @@
             </div>
           </div>
 
-          <div class="card mb-2">
-            <div class="card-header">
-              <h2>Google Calendar</h2>
-            </div>
-            <div class="card-body">
-              <div class="flex-between">
-                <div>
-                  <p style="font-size:0.9rem;color:var(--gray-600)">Sinkronkan jatuh tempo kendaraan ke Google Calendar Anda.</p>
-                  <p id="gcalStatus" style="font-size:0.8rem;color:var(--gray-500);margin-top:4px">Memeriksa status...</p>
-                </div>
-                <a id="gcalBtn" href="#" onclick="connectCalendar(event)" class="btn btn-primary btn-sm" style="width:auto">Hubungkan</a>
-              </div>
-            </div>
-          </div>
-
           <div class="card">
             <div class="card-header">
               <h2>Fonnte (WhatsApp Gateway)</h2>
@@ -254,14 +249,13 @@
                 </tr>
                 <tr>
                   <td style="font-weight:600">Deskripsi</td>
-                  <td>Sistem pengingat otomatis jatuh tempo pajak kendaraan dinas dengan integrasi Google Calendar dan WhatsApp (Fonnte).</td>
+                  <td>Sistem pengingat otomatis jatuh tempo pajak kendaraan dinas dengan notifikasi WhatsApp (Fonnte).</td>
                 </tr>
                 <tr>
                   <td style="font-weight:600">Fitur Utama</td>
                   <td>
                     &#8226; Manajemen data kendaraan dinas<br>
                     &#8226; Perhitungan otomatis jatuh tempo pajak<br>
-                    &#8226; Integrasi Google Calendar<br>
                     &#8226; Pengiriman reminder via WhatsApp (Fonnte)<br>
                     &#8226; Manajemen pengguna &amp; multi-role
                   </td>
@@ -321,6 +315,14 @@
   </div>
 
   <div class="toast-container" id="toastContainer"></div>
+  <nav class="bottom-nav">
+    <a href="/dashboard.html"><span class="icon">&#127968;</span>Dashboard</a>
+    <a href="/vehicles.html"><span class="icon">&#128663;</span>Kendaraan</a>
+    <a href="/notifications.html"><span class="icon">&#128276;</span>Notifikasi</a>
+    <a href="/recipients.html"><span class="icon">&#128101;</span>Penerima</a>
+    <a href="/settings.html" class="active"><span class="icon">&#9881;</span>Pengaturan</a>
+  </nav>
+
 
   <script src="js/api.js"></script>
   <script>
@@ -335,14 +337,6 @@
       document.getElementById('tabKelola').style.display = 'none';
     }
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
-      document.getElementById('sidebarOverlay').classList.toggle('open');
-    }
-    document.getElementById('sidebarOverlay').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebarOverlay').classList.remove('open');
-    });
 
     function logout() {
       clearAuth();
@@ -427,12 +421,12 @@
       emptyState.style.display = 'none';
       tbody.innerHTML = users.map(u => `
         <tr>
-          <td class="font-mono">${u.username}</td>
-          <td>${u.nama || '-'}</td>
-          <td><span class="badge ${u.role === 'admin' ? 'badge-kritis' : 'badge-aman'}">${u.role === 'admin' ? 'Admin' : 'User'}</span></td>
-          <td>${u.no_hp || '-'}</td>
-          <td>${u.jabatan || '-'}</td>
-          <td>
+          <td class="font-mono" data-label="Username">${u.username}</td>
+          <td data-label="Nama">${u.nama || '-'}</td>
+          <td data-label="Role"><span class="badge ${u.role === 'admin' ? 'badge-kritis' : 'badge-aman'}">${u.role === 'admin' ? 'Admin' : 'User'}</span></td>
+          <td data-label="No. HP">${u.no_hp || '-'}</td>
+          <td data-label="Jabatan">${u.jabatan || '-'}</td>
+          <td data-label="Aksi">
             <div class="actions-cell">
               <button class="btn btn-outline btn-sm" onclick="editUser(${u.id})" title="Edit">&#9998;</button>
               <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.username}')" title="Hapus">&#128465;</button>
@@ -564,37 +558,7 @@
     }
 
     // === Integrasi ===
-    async function connectCalendar(e) {
-      e.preventDefault();
-      try {
-        const data = await apiRequest('/calendar/auth');
-        if (data && data.url) {
-          window.location.href = data.url;
-        } else {
-          showToast('Gagal mendapatkan URL otorisasi.', 'error');
-        }
-      } catch (err) {
-        showToast('Gagal terhubung: ' + err.message, 'error');
-      }
-    }
-
     async function loadIntegrations() {
-      try {
-        const gcalStatus = document.getElementById('gcalStatus');
-        const gcalBtn = document.getElementById('gcalBtn');
-        const status = await apiRequest('/calendar/status');
-
-        if (status && status.connected) {
-          gcalStatus.innerHTML = '<span style="color:var(--success);font-weight:600">&#10003; Terhubung</span> - Kalender sudah terhubung.';
-          gcalBtn.textContent = 'Kelola';
-        } else {
-          gcalStatus.textContent = 'Belum terhubung. Klik tombol untuk menghubungkan.';
-          gcalBtn.textContent = 'Hubungkan';
-        }
-      } catch (err) {
-        document.getElementById('gcalStatus').textContent = 'Gagal memeriksa status.';
-      }
-
       try {
         const fonnteStatus = document.getElementById('fonnteStatus');
         const fonnteBadge = document.getElementById('fonnteBadge');

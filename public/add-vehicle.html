@@ -15,7 +15,6 @@
     <span class="blob b4"></span>
   </div>
 
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
   <div class="app-layout">
     <aside class="sidebar" id="sidebar">
@@ -29,7 +28,6 @@
       <nav class="sidebar-nav">
         <a href="/dashboard.html"><span class="icon">&#127968;</span> Dashboard</a>
         <a href="/vehicles.html" class="active"><span class="icon">&#128663;</span> Kendaraan</a>
-        <a href="/calendar.html"><span class="icon">&#128197;</span> Kalender</a>
         <a href="/notifications.html"><span class="icon">&#128276;</span> Notifikasi</a>
         <a href="/recipients.html"><span class="icon">&#128101;</span> Penerima</a>
         <a href="/settings.html"><span class="icon">&#9881;</span> Pengaturan</a>
@@ -48,9 +46,21 @@
 
     <main class="main-content">
       <div class="topbar">
-        <button class="menu-toggle" onclick="toggleSidebar()">&#9776;</button>
+        
         <h1>Tambah Kendaraan</h1>
         <a href="/vehicles.html" class="btn btn-outline btn-sm">&#8592; Kembali</a>
+        <div class="user-menu">
+          <button class="user-menu-btn" onclick="toggleUserMenu(event)" title="Menu Profil">
+            <img src="/assets/logo.png" alt="Avatar">
+          </button>
+          <div class="user-menu-dropdown" id="userMenuDropdown">
+            <div class="user-menu-info">
+              <div class="user-menu-name">User</div>
+              <div class="user-menu-role"></div>
+            </div>
+            <button class="user-menu-item" onclick="logout()">&#128682; Keluar</button>
+          </div>
+        </div>
       </div>
 
       <div class="content-area">
@@ -117,7 +127,7 @@
                 <textarea id="catatan" name="catatan" rows="3" placeholder="Catatan tambahan..."></textarea>
               </div>
 
-              <div style="display:flex;gap:8px;margin-top:20px">
+              <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
                 <button type="submit" class="btn btn-primary" id="submitBtn">&#10003; Simpan Kendaraan</button>
                 <a href="/vehicles.html" class="btn btn-outline">Batal</a>
               </div>
@@ -129,6 +139,14 @@
   </div>
 
   <div class="toast-container" id="toastContainer"></div>
+  <nav class="bottom-nav">
+    <a href="/dashboard.html"><span class="icon">&#127968;</span>Dashboard</a>
+    <a href="/vehicles.html" class="active"><span class="icon">&#128663;</span>Kendaraan</a>
+    <a href="/notifications.html"><span class="icon">&#128276;</span>Notifikasi</a>
+    <a href="/recipients.html"><span class="icon">&#128101;</span>Penerima</a>
+    <a href="/settings.html"><span class="icon">&#9881;</span>Pengaturan</a>
+  </nav>
+
 
   <script src="js/api.js"></script>
   <script>
@@ -139,14 +157,6 @@
     document.getElementById('userRole').textContent = user?.role === 'admin' ? 'Administrator' : 'User';
     document.getElementById('userAvatar').textContent = (user?.nama || 'U')[0].toUpperCase();
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('open');
-      document.getElementById('sidebarOverlay').classList.toggle('open');
-    }
-    document.getElementById('sidebarOverlay').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.remove('open');
-      document.getElementById('sidebarOverlay').classList.remove('open');
-    });
 
     function logout() {
       clearAuth();

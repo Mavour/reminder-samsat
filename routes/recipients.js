@@ -72,7 +72,7 @@ router.delete('/:id', authMiddleware, (req, res) => {
     return res.status(404).json({ error: 'Penerima tidak ditemukan.' });
   }
 
-  db.prepare('UPDATE recipients SET status_aktif = 0 WHERE id = ?').run(req.params.id);
+  db.prepare('DELETE FROM recipients WHERE id = ?').run(req.params.id);
   res.json({ message: 'Penerima berhasil dihapus.' });
 });
 

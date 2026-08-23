@@ -61,14 +61,6 @@ function initDatabase() {
       FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
     );
 
-    CREATE TABLE IF NOT EXISTS calendar_events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      vehicle_id INTEGER,
-      google_event_id TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
-    );
-
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT,

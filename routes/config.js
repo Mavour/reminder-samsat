@@ -87,14 +87,4 @@ router.get('/fonnte', authMiddleware, (req, res) => {
   });
 });
 
-router.get('/google-calendar', authMiddleware, (req, res) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const configured = !!(clientId && clientId !== 'your_google_client_id');
-
-  res.json({
-    configured,
-    message: configured ? 'Google Calendar sudah dikonfigurasi.' : 'Google Calendar belum dikonfigurasi.'
-  });
-});
-
 module.exports = router;

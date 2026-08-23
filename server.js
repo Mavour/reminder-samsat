@@ -8,7 +8,6 @@ const { startScheduler } = require('./services/scheduler');
 const authRoutes = require('./routes/auth');
 const vehicleRoutes = require('./routes/vehicles');
 const reminderRoutes = require('./routes/reminders');
-const calendarRoutes = require('./routes/calendar');
 const configRoutes = require('./routes/config');
 const recipientRoutes = require('./routes/recipients');
 
@@ -26,7 +25,6 @@ app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/api/auth', authRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/reminders', reminderRoutes);
-app.use('/api/calendar', calendarRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/recipients', recipientRoutes);
 

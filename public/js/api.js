@@ -162,10 +162,8 @@ function gantiPlatBadge(v) {
   const title = v.ganti_plat_due_this_year
     ? 'Ganti plat berikutnya: ' + v.next_ganti_plat
     : 'Perkiraan tahun ganti plat berikutnya';
-  const label = v.ganti_plat_due_this_year
-    ? 'Ganti Plat Tahun Ini'
-    : 'Ganti Plat ' + v.next_ganti_plat;
-  return ` <span class="badge ${cls}" title="${title}">${label}</span>`;
+  const label = v.ganti_plat_due_this_year ? 'Ganti Plat Tahun Ini' : 'Ganti Plat ' + v.next_ganti_plat;
+  return `<div class="gp-wrap"><span class="badge ${cls}" title="${title}">${label}</span></div>`;
 }
 
 const WITA_OFFSET_HOURS = 8;
@@ -179,3 +177,24 @@ function parseTanggalPajak(dateStr) {
   const parts = String(dateStr).split('T')[0].split('-');
   return { y: parseInt(parts[0], 10), m: parseInt(parts[1], 10) - 1, d: parseInt(parts[2], 10) };
 }
+
+function toggleUserMenu(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('userMenuDropdown');
+  if (dd) dd.classList.toggle('open');
+}
+
+document.addEventListener('click', function (e) {
+  const dd = document.getElementById('userMenuDropdown');
+  if (!dd || !dd.classList.contains('open')) return;
+  if (!e.target.closest('.user-menu')) {
+    dd.classList.remove('open');
+  }
+});
+
+(function initUserMenu() {
+  const u = getUser();
+  if (!u) return;
+  document.querySelectorAll('.user-menu-name').forEach(el => el.textContent = u.nama || 'User');
+  document.querySelectorAll('.user-menu-role').forEach(el => el.textContent = u.role === 'admin' ? 'Administrator' : 'User');
+})();
