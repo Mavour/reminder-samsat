@@ -36,6 +36,15 @@ function isAdmin() {
   return user && user.role === 'admin';
 }
 
+// Cegah akses lewat tombol "Kembali" browser setelah logout (bfcache).
+// Saat halaman dipulihkan dari cache, requireAuth() di awal script tidak dijalankan lagi,
+// jadi kita validasi ulang di sini.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && !isLoggedIn() && location.pathname !== '/') {
+    window.location.href = '/';
+  }
+});
+
 async function apiRequest(endpoint, options = {}) {
   const token = getToken();
   const headers = {
