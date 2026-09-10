@@ -40,8 +40,8 @@ function initDatabase() {
       warna TEXT,
       tanggal_pajak DATE NOT NULL,
       estimasi_pkb DECIMAL(12,2) DEFAULT 0,
+      estimasi_opsen_pkb DECIMAL(12,2) DEFAULT 0,
       estimasi_swdkllj DECIMAL(12,2) DEFAULT 0,
-      estimasi_biaya_lain DECIMAL(12,2) DEFAULT 0,
       total_estimasi DECIMAL(12,2) DEFAULT 0,
       status_aktif INTEGER DEFAULT 1,
       catatan TEXT,
@@ -76,6 +76,26 @@ function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migrasi: tambah kolom estimasi_opsen_pkb untuk DB lama yang belum punya
+  const cols = db.prepare(`PRAGMA table_info(vehicles)`).all();
+  if (!cols.some(c => c.name === 'estimasi_opsen_pkb')) {
+    db.exec(`ALTER TABLE vehicles ADD COLUMN estimasi_opsen_pkb DECIMAL(12,2) DEFAULT 0`);
+    console.log('[DB] Migrasi: kolom estimasi_opsen_pkb ditambahkan');
+  }
+
+  // Migrasi: hapus kolom estimasi_biaya_lain (ambigu dengan biaya ganti plat otomatis).
+  // Total dihitung ulang tanpa komponen tersebut.
+  if (db.prepare(`PRAGMA table_info(vehicles)`).all().some(c => c.name === 'estimasi_biaya_lain')) {
+    db.exec(`UPDATE vehicles SET total_estimasi = COALESCE(estimasi_pkb, 0) + COALESCE(estimasi_opsen_pkb, 0) + COALESCE(estimasi_swdkllj, 0)`);
+    try {
+      db.exec(`ALTER TABLE vehicles DROP COLUMN estimasi_biaya_lain`);
+    } catch (e) {
+      db.exec(`UPDATE vehicles SET estimasi_biaya_lain = 0`);
+      console.log('[DB] Migrasi: DROP COLUMN tidak didukung, estimasi_biaya_lain di-nol-kan (' + e.message + ')');
+    }
+    console.log('[DB] Migrasi: kolom estimasi_biaya_lain dihapus');
+  }
 
   const existingAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
   if (!existingAdmin) {

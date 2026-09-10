@@ -147,8 +147,8 @@ function buildReminderMessage(vehicle, daysRemaining, kantorNama, isLast) {
 
   const estLines = [
     `▪️ PKB : ${formatRupiah(vehicle.estimasi_pkb)}`,
-    `▪️ SWDKLLJ : ${formatRupiah(vehicle.estimasi_swdkllj)}`,
-    `▪️ Lain-lain : ${formatRupiah(vehicle.estimasi_biaya_lain)}`
+    `▪️ Opsen PKB : ${formatRupiah(vehicle.estimasi_opsen_pkb || 0)}`,
+    `▪️ SWDKLLJ : ${formatRupiah(vehicle.estimasi_swdkllj)}`
   ];
 
   if (enriched.biaya_ganti_plat > 0) {
@@ -199,8 +199,8 @@ function buildSummaryReminderMessage(vehicles, daysRemaining, kantorNama, isLast
 
     const rincian = [
       `PKB ${formatRupiah(vehicle.estimasi_pkb)}`,
-      `SWDKLLJ ${formatRupiah(vehicle.estimasi_swdkllj)}`,
-      `Lain-lain ${formatRupiah(vehicle.estimasi_biaya_lain)}`
+      `Opsen ${formatRupiah(vehicle.estimasi_opsen_pkb || 0)}`,
+      `SWDKLLJ ${formatRupiah(vehicle.estimasi_swdkllj)}`
     ];
     if (enriched.biaya_ganti_plat > 0) {
       rincian.push(`Ganti Plat ${formatRupiah(enriched.biaya_ganti_plat)}`);

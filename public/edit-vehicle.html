@@ -116,14 +116,13 @@
                   <input type="number" id="estimasi_pkb" name="estimasi_pkb" placeholder="0" min="0">
                 </div>
                 <div class="form-group">
+                  <label for="estimasi_opsen_pkb">Opsen PKB (Rp)</label>
+                  <input type="number" id="estimasi_opsen_pkb" name="estimasi_opsen_pkb" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
                   <label for="estimasi_swdkllj">Estimasi SWDKLLJ (Rp)</label>
                   <input type="number" id="estimasi_swdkllj" name="estimasi_swdkllj" placeholder="0" min="0">
                 </div>
-              </div>
-
-              <div class="form-group">
-                <label for="estimasi_biaya_lain">Estimasi Biaya Lain (Rp)</label>
-                <input type="number" id="estimasi_biaya_lain" name="estimasi_biaya_lain" placeholder="0" min="0">
               </div>
 
               <div class="form-group">
@@ -185,8 +184,8 @@
         document.getElementById('warna').value = vehicle.warna || '';
         document.getElementById('tanggal_pajak').value = vehicle.tanggal_pajak ? vehicle.tanggal_pajak.split('T')[0] : '';
         document.getElementById('estimasi_pkb').value = vehicle.estimasi_pkb || '';
+        document.getElementById('estimasi_opsen_pkb').value = vehicle.estimasi_opsen_pkb || '';
         document.getElementById('estimasi_swdkllj').value = vehicle.estimasi_swdkllj || '';
-        document.getElementById('estimasi_biaya_lain').value = vehicle.estimasi_biaya_lain || '';
         document.getElementById('catatan').value = vehicle.catatan || '';
 
         document.getElementById('loadingState').style.display = 'none';
@@ -212,7 +211,7 @@
 
       formData.forEach((value, key) => {
         if (value !== '') {
-          body[key] = ['estimasi_pkb', 'estimasi_swdkllj', 'estimasi_biaya_lain', 'tahun'].includes(key)
+          body[key] = ['estimasi_pkb', 'estimasi_opsen_pkb', 'estimasi_swdkllj', 'tahun'].includes(key)
             ? Number(value)
             : value;
         }

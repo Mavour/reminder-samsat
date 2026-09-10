@@ -104,7 +104,7 @@ router.get('/:id', authMiddleware, (req, res) => {
 router.post('/', authMiddleware, (req, res) => {
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
-    tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain,
+    tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj,
     catatan, user_id
   } = req.body;
 
@@ -113,16 +113,16 @@ router.post('/', authMiddleware, (req, res) => {
   }
 
   const pkb = parseFloat(estimasi_pkb) || 0;
+  const opsen = parseFloat(estimasi_opsen_pkb) || 0;
   const swdkllj = parseFloat(estimasi_swdkllj) || 0;
-  const biayaLain = parseFloat(estimasi_biaya_lain) || 0;
-  const total = pkb + swdkllj + biayaLain;
+  const total = pkb + opsen + swdkllj;
   const assignedUserId = req.user.role === 'admin' ? (user_id || req.user.id) : req.user.id;
 
   const db = getDb();
   const result = db.prepare(`
-    INSERT INTO vehicles (user_id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain, total_estimasi, catatan)
+    INSERT INTO vehicles (user_id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj, total_estimasi, catatan)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(assignedUserId, nopol.toUpperCase(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, swdkllj, biayaLain, total, catatan || null);
+  `).run(assignedUserId, nopol.toUpperCase(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, opsen, swdkllj, total, catatan || null);
 
   res.status(201).json({
     message: 'Kendaraan berhasil ditambahkan.',
@@ -144,14 +144,15 @@ router.put('/:id', authMiddleware, (req, res) => {
 
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
-    tanggal_pajak, estimasi_pkb, estimasi_swdkllj, estimasi_biaya_lain,
+    tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj,
     catatan, status_aktif, user_id
   } = req.body;
 
-  const pkb = parseFloat(estimasi_pkb) || vehicle.estimasi_pkb;
-  const swdkllj = parseFloat(estimasi_swdkllj) || vehicle.estimasi_swdkllj;
-  const biayaLain = parseFloat(estimasi_biaya_lain) || vehicle.estimasi_biaya_lain;
-  const total = pkb + swdkllj + biayaLain;
+  const numOrKeep = (val, old) => (val === undefined || val === null || val === '' ? (parseFloat(old) || 0) : (parseFloat(val) || 0));
+  const pkb = numOrKeep(estimasi_pkb, vehicle.estimasi_pkb);
+  const opsen = numOrKeep(estimasi_opsen_pkb, vehicle.estimasi_opsen_pkb);
+  const swdkllj = numOrKeep(estimasi_swdkllj, vehicle.estimasi_swdkllj);
+  const total = pkb + opsen + swdkllj;
 
   db.prepare(`
     UPDATE vehicles SET
@@ -162,8 +163,8 @@ router.put('/:id', authMiddleware, (req, res) => {
       warna = COALESCE(?, warna),
       tanggal_pajak = COALESCE(?, tanggal_pajak),
       estimasi_pkb = ?,
+      estimasi_opsen_pkb = ?,
       estimasi_swdkllj = ?,
-      estimasi_biaya_lain = ?,
       total_estimasi = ?,
       catatan = COALESCE(?, catatan),
       status_aktif = COALESCE(?, status_aktif),
@@ -172,7 +173,7 @@ router.put('/:id', authMiddleware, (req, res) => {
     WHERE id = ?
   `).run(
     nopol ? nopol.toUpperCase() : null, jenis_kendaraan, merk, tahun, warna,
-    tanggal_pajak, pkb, swdkllj, biayaLain, total,
+    tanggal_pajak, pkb, opsen, swdkllj, total,
     catatan, status_aktif, user_id, req.params.id
   );
 

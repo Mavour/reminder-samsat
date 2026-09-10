@@ -112,14 +112,13 @@
                   <input type="number" id="estimasi_pkb" name="estimasi_pkb" placeholder="0" min="0">
                 </div>
                 <div class="form-group">
+                  <label for="estimasi_opsen_pkb">Opsen PKB (Rp)</label>
+                  <input type="number" id="estimasi_opsen_pkb" name="estimasi_opsen_pkb" placeholder="0" min="0">
+                </div>
+                <div class="form-group">
                   <label for="estimasi_swdkllj">Estimasi SWDKLLJ (Rp)</label>
                   <input type="number" id="estimasi_swdkllj" name="estimasi_swdkllj" placeholder="0" min="0">
                 </div>
-              </div>
-
-              <div class="form-group">
-                <label for="estimasi_biaya_lain">Estimasi Biaya Lain (Rp)</label>
-                <input type="number" id="estimasi_biaya_lain" name="estimasi_biaya_lain" placeholder="0" min="0">
               </div>
 
               <div class="form-group">
@@ -176,7 +175,7 @@
 
       formData.forEach((value, key) => {
         if (value !== '') {
-          body[key] = ['estimasi_pkb', 'estimasi_swdkllj', 'estimasi_biaya_lain', 'tahun'].includes(key)
+          body[key] = ['estimasi_pkb', 'estimasi_opsen_pkb', 'estimasi_swdkllj', 'tahun'].includes(key)
             ? Number(value)
             : value;
         }
