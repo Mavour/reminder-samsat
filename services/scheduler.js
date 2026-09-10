@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { getDb } = require('../database/init');
-const { sendWhatsAppBroadcast, buildReminderMessage } = require('./fonnte');
+const { sendWhatsAppBroadcast, buildReminderMessage, buildSummaryReminderMessage } = require('./fonnte');
 const { witaDateString } = require('./wita');
 
 const DEFAULT_REMINDER_DAYS = [3, 7];
@@ -55,51 +55,70 @@ async function checkAndSendReminders() {
         AND v.tanggal_pajak = ?
     `).all(dateStr);
 
-    const delaySec = getWhatsAppDelay();
+    if (vehicles.length === 0) continue;
 
-    for (let i = 0; i < vehicles.length; i++) {
-      const vehicle = vehicles[i];
+    // Filter: hanya kendaraan yang belum dikirim hari ini (agar tidak dobel).
+    // Kalau tanggal sama, sisanya digabung jadi 1 pesan summary.
+    const pending = vehicles.filter((vehicle) => {
       const existingNotif = db.prepare(`
         SELECT id FROM notifications
         WHERE vehicle_id = ? AND type = 'whatsapp_h${days}' AND date(sent_at, '+8 hours') = ?
       `).get(vehicle.id, todayStr);
-
       if (existingNotif) {
         console.log(`[Scheduler] Reminder H-${days} untuk ${vehicle.nopol} sudah terkirim hari ini.`);
-        continue;
+        return false;
       }
+      return true;
+    });
 
-      const recipients = getActiveRecipients();
-      const phones = recipients.map(r => r.no_hp);
+    if (pending.length === 0) continue;
 
-      if (phones.length === 0) {
-        console.log(`[Scheduler] Tidak ada penerima untuk ${vehicle.nopol}. Skip.`);
-        db.prepare(`INSERT INTO notifications (vehicle_id, type, message, status, error_msg) VALUES (?, ?, ?, ?, ?)`)
-          .run(vehicle.id, `whatsapp_h${days}`, '', 'failed', 'Tidak ada nomor HP penerima');
-        continue;
+    const delaySec = getWhatsAppDelay();
+    const recipients = getActiveRecipients();
+    const phones = recipients.map(r => r.no_hp);
+
+    if (phones.length === 0) {
+      console.log(`[Scheduler] Tidak ada penerima untuk tanggal ${dateStr}. Skip.`);
+      const insert = db.prepare(`INSERT INTO notifications (vehicle_id, type, message, status, error_msg) VALUES (?, ?, ?, ?, ?)`);
+      for (const vehicle of pending) {
+        insert.run(vehicle.id, `whatsapp_h${days}`, '', 'failed', 'Tidak ada nomor HP penerima');
       }
+      continue;
+    }
 
-      const message = buildReminderMessage(vehicle, days, KANTOR_NAMA, days === lastDay);
-      let result;
-      try {
-        result = await sendWhatsAppBroadcast(phones, message);
-      } catch (err) {
-        result = { success: false, error: err.message };
-      }
+    const isLast = days === lastDay;
+    let message;
+    if (pending.length === 1) {
+      message = buildReminderMessage(pending[0], days, KANTOR_NAMA, isLast);
+    } else {
+      message = buildSummaryReminderMessage(pending, days, KANTOR_NAMA, isLast);
+    }
 
-      db.prepare(`INSERT INTO notifications (vehicle_id, type, message, status, error_msg) VALUES (?, ?, ?, ?, ?)`)
-        .run(vehicle.id, `whatsapp_h${days}`, message, result.success ? 'sent' : 'failed', result.error || null);
+    let result;
+    try {
+      result = await sendWhatsAppBroadcast(phones, message);
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
 
-      if (result.success) {
-        console.log(`[Scheduler] Reminder H-${days} terkirim untuk ${vehicle.nopol} ke ${phones.length} nomor`);
+    const insert = db.prepare(`INSERT INTO notifications (vehicle_id, type, message, status, error_msg) VALUES (?, ?, ?, ?, ?)`);
+    for (const vehicle of pending) {
+      insert.run(vehicle.id, `whatsapp_h${days}`, message, result.success ? 'sent' : 'failed', result.error || null);
+    }
+
+    if (result.success) {
+      if (pending.length === 1) {
+        console.log(`[Scheduler] Reminder H-${days} terkirim untuk ${pending[0].nopol} ke ${phones.length} nomor`);
       } else {
-        console.log(`[Scheduler] Gagal kirim reminder H-${days} untuk ${vehicle.nopol}: ${result.error}`);
+        console.log(`[Scheduler] Reminder H-${days} SUMMARY terkirim untuk ${pending.length} kendaraan (${pending.map(v => v.nopol).join(', ')}) ke ${phones.length} nomor`);
       }
+    } else {
+      console.log(`[Scheduler] Gagal kirim reminder H-${days} untuk tanggal ${dateStr}: ${result.error}`);
+    }
 
-      if (i < vehicles.length - 1 && delaySec > 0) {
-        console.log(`[Scheduler] Jeda ${delaySec} detik sebelum kendaraan berikutnya...`);
-        await sleep(delaySec * 1000);
-      }
+    if (delaySec > 0) {
+      console.log(`[Scheduler] Jeda ${delaySec} detik sebelum pengecekan berikutnya...`);
+      await sleep(delaySec * 1000);
     }
   }
 

@@ -180,4 +180,54 @@ Salam,
 *${kantor}*`;
 }
 
-module.exports = { sendWhatsApp, sendWhatsAppBroadcast, buildReminderMessage, formatTanggalIndo, formatRupiah };
+function buildSummaryReminderMessage(vehicles, daysRemaining, kantorNama, isLast) {
+  const action = isLast
+    ? 'Dimohon untuk segera mengurus pembayaran guna menghindari denda.'
+    : 'Mohon untuk dapat segera diproses pembayarannya.';
+
+  const kantor = kantorNama || process.env.KANTOR_NAMA || 'Bagian Perlengkapan Kejaksaan Negeri Badung';
+  const currentYear = new Date().getFullYear();
+
+  const jatuhTempo = vehicles.length > 0 ? formatTanggalIndo(vehicles[0].tanggal_pajak) : '-';
+  const adaGantiPlat = vehicles.some(v => enrichVehicle(v, currentYear).biaya_ganti_plat > 0);
+
+  let grandTotal = 0;
+
+  const blocks = vehicles.map((vehicle, idx) => {
+    const enriched = enrichVehicle(vehicle, currentYear);
+    grandTotal += enriched.total_estimasi_lengkap;
+
+    const rincian = [
+      `PKB ${formatRupiah(vehicle.estimasi_pkb)}`,
+      `SWDKLLJ ${formatRupiah(vehicle.estimasi_swdkllj)}`,
+      `Lain-lain ${formatRupiah(vehicle.estimasi_biaya_lain)}`
+    ];
+    if (enriched.biaya_ganti_plat > 0) {
+      rincian.push(`Ganti Plat ${formatRupiah(enriched.biaya_ganti_plat)}`);
+    }
+
+    const platNote = enriched.biaya_ganti_plat > 0 ? ' 🪪(termasuk ganti plat)' : '';
+
+    return `${idx + 1}. Nopol : *${vehicle.nopol}*${platNote}\n` +
+      `   Jenis : ${vehicle.jenis_kendaraan} | ${vehicle.merk || '-'} | ${vehicle.tahun || '-'} | ${vehicle.warna || '-'}\n` +
+      `   Pajak : *${formatRupiah(enriched.total_estimasi_lengkap)}* (${rincian.join(' + ')})`;
+  });
+
+  return `🚗 *PENGINGAT PAJAK KENDARAAN DINAS (${vehicles.length} KENDARAAN)*\n` +
+    `\n` +
+    `Yth. Bapak/Ibu,\n` +
+    `\n` +
+    `Dengan hormat, kami mengingatkan bahwa *${vehicles.length} kendaraan dinas* berikut akan jatuh tempo dalam *${daysRemaining} hari* (⏰ ${jatuhTempo}):\n` +
+    `\n` +
+    `${blocks.join('\n\n')}\n` +
+    `\n` +
+    `💰 *TOTAL KESELURUHAN (${vehicles.length} kendaraan) : *${formatRupiah(grandTotal)}**\n` +
+    `\n` +
+    `${adaGantiPlat ? '🪪 *Sudah termasuk biaya penggantian plat nomor* untuk kendaraan yang jatuh tempo ganti plat tahun ini.\n\n' : ''}⚠️ *${action}*\n` +
+    `\n` +
+    `Terima kasih atas perhatian dan kerjasamanya.\n` +
+    `Salam,\n` +
+    `*${kantor}*`;
+}
+
+module.exports = { sendWhatsApp, sendWhatsAppBroadcast, buildReminderMessage, buildSummaryReminderMessage, formatTanggalIndo, formatRupiah };
