@@ -86,13 +86,6 @@
               <div class="stat-label">Lewat Tempo</div>
             </div>
           </div>
-          <div class="stat-card">
-            <div class="stat-icon green">&#128176;</div>
-            <div>
-              <div class="stat-value" id="statBiaya">Rp 0</div>
-              <div class="stat-label">Estimasi Biaya (30 Hari)</div>
-            </div>
-          </div>
         </div>
 
         <div>
@@ -174,7 +167,6 @@
         document.getElementById('statTotal').textContent = stats.total_kendaraan;
         document.getElementById('statExpiring').textContent = stats.pajak_30_hari;
         document.getElementById('statExpired').textContent = stats.pajak_lewat;
-        document.getElementById('statBiaya').textContent = formatRupiah(stats.estimasi_biaya_30_hari);
       } catch (err) {
         showToast('Gagal memuat statistik: ' + err.message, 'error');
       }
@@ -195,6 +187,7 @@
                 <div class="desc">Jatuh tempo: ${formatDateFull(v.tanggal_pajak)} | Estimasi: ${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? ' (termasuk ganti plat)' : ''}</div>
               </div>
               <span class="badge badge-${v.status}">${v.status_label}</span>
+              <button class="btn btn-success btn-sm" style="width:auto;flex-shrink:0" onclick="markPaidDashboard(${v.id}, '${v.nopol}', '${v.tanggal_pajak}')" title="Tandai sudah bayar">&#10003; Sudah Bayar</button>
             </div>
           `).join('');
         }
@@ -229,6 +222,25 @@
         }
       } catch (err) {
         showToast('Gagal memuat data kendaraan: ' + err.message, 'error');
+      }
+    }
+
+    async function markPaidDashboard(id, nopol, tanggalPajak) {
+      const p = parseTanggalPajak(tanggalPajak);
+      const dt = new Date(Date.UTC(p.y + 1, p.m, p.d));
+      const pad = (n) => String(n).padStart(2, '0');
+      const baru = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+      const ok = await showConfirm(
+        'Tandai pajak <strong>' + escapeHtml(nopol) + '</strong> sudah dibayar?<br>Jatuh tempo: ' + escapeHtml(tanggalPajak) + ' &#8594; <strong>' + escapeHtml(baru) + '</strong><br><br>Untuk tanggal bayar / catatan khusus, gunakan tombol &#10003; di halaman Kendaraan.',
+        { title: 'Sudah Bayar?', confirmText: 'Ya, Sudah Bayar' }
+      );
+      if (!ok) return;
+      try {
+        const res = await apiRequest(`/vehicles/${id}/mark-paid`, { method: 'POST', body: JSON.stringify({}) });
+        showToast(res.message || 'Berhasil ditandai sudah bayar.', 'success');
+        loadDashboard();
+      } catch (err) {
+        showToast('Gagal simpan: ' + err.message, 'error');
       }
     }
 

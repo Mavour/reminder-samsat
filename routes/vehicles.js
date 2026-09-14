@@ -180,6 +180,88 @@ router.put('/:id', authMiddleware, (req, res) => {
   res.json({ message: 'Data kendaraan berhasil diperbarui.' });
 });
 
+function addOneYear(dateStr) {
+  const parts = String(dateStr).split('T')[0].split('-');
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+  // Tangani 29 Feb -> 28 Feb tahun berikutnya
+  const dt = new Date(Date.UTC(y + 1, m - 1, d));
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+}
+
+router.post('/:id/mark-paid', authMiddleware, (req, res) => {
+  const db = getDb();
+  const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(req.params.id);
+
+  if (!vehicle) {
+    return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
+  }
+
+  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Akses ditolak.' });
+  }
+
+  let { tanggal_bayar, tanggal_pajak_baru, catatan } = req.body || {};
+  const todayStr = witaDateString();
+  if (!tanggal_bayar || !/^\d{4}-\d{2}-\d{2}$/.test(tanggal_bayar)) {
+    tanggal_bayar = todayStr;
+  }
+  if (!tanggal_pajak_baru || !/^\d{4}-\d{2}-\d{2}$/.test(tanggal_pajak_baru)) {
+    tanggal_pajak_baru = addOneYear(vehicle.tanggal_pajak);
+  }
+  if (!tanggal_pajak_baru) {
+    return res.status(400).json({ error: 'Tanggal pajak lama tidak valid, isi tanggal pajak baru manual.' });
+  }
+
+  db.prepare(`
+    UPDATE vehicles SET tanggal_pajak = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+  `).run(tanggal_pajak_baru, vehicle.id);
+
+  db.prepare(`
+    INSERT INTO payment_history (vehicle_id, nopol_snapshot, tanggal_pajak_lama, tanggal_pajak_baru, tanggal_bayar, dibayar_oleh_user_id, catatan)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(vehicle.id, vehicle.nopol, vehicle.tanggal_pajak, tanggal_pajak_baru, tanggal_bayar, req.user.id, catatan || null);
+
+  db.prepare(`
+    INSERT INTO notifications (vehicle_id, type, message, status) VALUES (?, ?, ?, ?)
+  `).run(vehicle.id, 'pembayaran', `Pajak ${vehicle.nopol} ditandai SUDAH BAYAR pada ${tanggal_bayar}. Jatuh tempo ${vehicle.tanggal_pajak} -> ${tanggal_pajak_baru}.`, 'sent');
+
+  res.json({
+    message: `Pajak ${vehicle.nopol} ditandai sudah bayar. Jatuh tempo baru: ${tanggal_pajak_baru}.`,
+    vehicle_id: vehicle.id,
+    nopol: vehicle.nopol,
+    tanggal_pajak_lama: vehicle.tanggal_pajak,
+    tanggal_pajak_baru,
+    tanggal_bayar
+  });
+});
+
+router.get('/:id/payments', authMiddleware, (req, res) => {
+  const db = getDb();
+  const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(req.params.id);
+
+  if (!vehicle) {
+    return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
+  }
+
+  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Akses ditolak.' });
+  }
+
+  const rows = db.prepare(`
+    SELECT h.*, u.nama as dibayar_oleh_nama
+    FROM payment_history h
+    LEFT JOIN users u ON h.dibayar_oleh_user_id = u.id
+    WHERE h.vehicle_id = ?
+    ORDER BY h.created_at DESC, h.id DESC
+  `).all(req.params.id);
+
+  res.json(rows);
+});
+
 router.delete('/:id', authMiddleware, (req, res) => {
   const db = getDb();
   const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(req.params.id);

@@ -75,6 +75,20 @@ function initDatabase() {
       status_aktif INTEGER DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS payment_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      vehicle_id INTEGER NOT NULL,
+      nopol_snapshot TEXT,
+      tanggal_pajak_lama DATE,
+      tanggal_pajak_baru DATE NOT NULL,
+      tanggal_bayar DATE,
+      dibayar_oleh_user_id INTEGER,
+      catatan TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+      FOREIGN KEY (dibayar_oleh_user_id) REFERENCES users(id)
+    );
   `);
 
   // Migrasi: tambah kolom estimasi_opsen_pkb untuk DB lama yang belum punya

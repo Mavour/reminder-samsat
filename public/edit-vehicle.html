@@ -132,10 +132,16 @@
 
               <div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap">
                 <button type="submit" class="btn btn-primary" id="submitBtn">&#10003; Simpan Perubahan</button>
+                <button type="button" class="btn btn-success" id="paidBtn" onclick="markPaid()">&#10003; Tandai Sudah Bayar</button>
                 <a href="/vehicles.html" class="btn btn-outline">Batal</a>
               </div>
             </form>
           </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-header"><h2>&#128197; Riwayat Pembayaran</h2></div>
+          <div class="card-body" id="payHistoryBox"><p style="color:var(--gray-500)">Memuat...</p></div>
         </div>
       </div>
     </main>
@@ -190,11 +196,49 @@
 
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('vehicleForm').style.display = 'block';
+        loadHistory();
       } catch (err) {
         showToast('Gagal memuat data kendaraan: ' + err.message, 'error');
         setTimeout(() => {
           window.location.href = '/vehicles.html';
         }, 2000);
+      }
+    }
+
+    async function loadHistory() {
+      const box = document.getElementById('payHistoryBox');
+      try {
+        const hist = await apiRequest(`/vehicles/${vehicleId}/payments`);
+        if (hist.length === 0) {
+          box.innerHTML = '<p style="color:var(--gray-500)">Belum ada riwayat pembayaran. Klik "Tandai Sudah Bayar" setelah pajak diperpanjang.</p>';
+          return;
+        }
+        box.innerHTML = '<div class="table-wrapper"><table><thead><tr><th>Tgl Bayar</th><th>Tempo Lama</th><th>Tempo Baru</th><th>Oleh</th><th>Catatan</th></tr></thead><tbody>' +
+          hist.map(h => '<tr><td>' + escapeHtml(h.tanggal_bayar || '-') + '</td><td>' + escapeHtml(h.tanggal_pajak_lama || '-') + '</td><td><strong>' + escapeHtml(h.tanggal_pajak_baru) + '</strong></td><td>' + escapeHtml(h.dibayar_oleh_nama || '-') + '</td><td>' + escapeHtml(h.catatan || '-') + '</td></tr>').join('') +
+          '</tbody></table></div>';
+      } catch (e) {
+        box.innerHTML = '<p style="color:var(--danger)">Gagal memuat riwayat.</p>';
+      }
+    }
+
+    async function markPaid() {
+      const lama = document.getElementById('tanggal_pajak').value;
+      let baru = '';
+      if (lama) {
+        const p = lama.split('-');
+        baru = (parseInt(p[0], 10) + 1) + '-' + p[1] + '-' + p[2];
+      }
+      const ok = await showConfirm(
+        'Tandai <strong>' + escapeHtml(document.getElementById('nopol').value) + '</strong> sudah dibayar?<br>Jatuh tempo: ' + escapeHtml(lama) + ' &#8594; <strong>' + escapeHtml(baru) + '</strong>',
+        { title: 'Sudah Bayar?', confirmText: 'Ya, Sudah Bayar' }
+      );
+      if (!ok) return;
+      try {
+        const res = await apiRequest(`/vehicles/${vehicleId}/mark-paid`, { method: 'POST', body: JSON.stringify({}) });
+        showToast(res.message || 'Berhasil!', 'success');
+        loadVehicle();
+      } catch (err) {
+        showToast('Gagal: ' + err.message, 'error');
       }
     }
 

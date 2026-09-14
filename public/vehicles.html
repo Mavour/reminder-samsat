@@ -137,6 +137,37 @@
     </div>
   </div>
 
+  <!-- Modal Konfirmasi Sudah Bayar -->
+  <div class="modal-overlay" id="payModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>&#10003; Konfirmasi Sudah Bayar <span id="payNopol" class="font-mono"></span></h3>
+        <button class="modal-close" onclick="closePayModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="payInfo" style="background:rgba(15,23,42,0.04);border-radius:10px;padding:10px 14px;font-size:0.82rem;color:var(--gray-600);margin-bottom:14px;line-height:1.6"></div>
+        <div class="form-group">
+          <label for="payTanggalBayar">Tanggal Bayar (aktual)</label>
+          <input type="date" id="payTanggalBayar">
+        </div>
+        <div class="form-group">
+          <label for="payTanggalBaru">Jatuh Tempo Baru *</label>
+          <input type="date" id="payTanggalBaru" required>
+          <small style="color:var(--gray-500)">Otomatis = jatuh tempo lama + 1 tahun. Bisa diubah manual bila perlu.</small>
+        </div>
+        <div class="form-group">
+          <label for="payCatatan">Catatan (opsional)</label>
+          <textarea id="payCatatan" rows="2" placeholder="Contoh: Bayar di Samsat Badung, STNK sudah diambil..."></textarea>
+        </div>
+        <div id="payHistory" style="font-size:0.8rem;color:var(--gray-600)"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="closePayModal()">Batal</button>
+        <button class="btn btn-success btn-sm" style="width:auto" id="paySubmitBtn" onclick="submitPay()">&#10003; Sudah Bayar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/api.js"></script>
   <script>
     if (!requireAuth()) throw new Error('Not authenticated');
@@ -179,7 +210,8 @@
           <td data-label="Status"><span class="badge badge-${v.status}">${v.status_label}</span></td>
           <td data-label="Aksi">
             <div class="actions-cell">
-              <a href="/edit-vehicle.html?id=${v.id}" class="btn btn-outline btn-sm">&#9998;</a>
+              <a href="/edit-vehicle.html?id=${v.id}" class="btn btn-outline btn-sm" title="Edit">&#9998;</a>
+              <button class="btn btn-success btn-sm" onclick="openPayModal(${v.id})" title="Tandai sudah bayar / perpanjang">&#10003;</button>
               <button class="btn btn-outline btn-sm" onclick="previewReminder(${v.id})" title="Preview & Kirim">&#128065;</button>
               <button class="btn btn-danger btn-sm" onclick="deleteVehicle(${v.id}, '${v.nopol}')" title="Hapus">&#128465;</button>
             </div>
@@ -283,6 +315,83 @@
         renderVehicles(allVehicles);
       } catch (err) {
         showToast('Gagal memuat data: ' + err.message, 'error');
+      }
+    }
+
+    let payVehicleId = null;
+
+    function addOneYearStr(dateStr) {
+      const p = parseTanggalPajak(dateStr);
+      if (isNaN(p.y)) return '';
+      const dt = new Date(Date.UTC(p.y + 1, p.m, p.d));
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
+    }
+
+    function todayWitaStr() {
+      const t = witaNow();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`;
+    }
+
+    async function openPayModal(id) {
+      const v = allVehicles.find(x => x.id === id);
+      if (!v) return;
+      payVehicleId = id;
+      document.getElementById('payNopol').textContent = ' - ' + v.nopol;
+      document.getElementById('payInfo').innerHTML =
+        'Jatuh tempo lama: <strong>' + formatDateFull(v.tanggal_pajak) + '</strong> ' +
+        '(<span class="badge badge-' + v.status + '">' + v.status_label + '</span>)<br>' +
+        'Setelah konfirmasi, status <strong>Lewat Tempo / Kritis</strong> akan hilang otomatis karena jatuh tempo maju 1 tahun.';
+      document.getElementById('payTanggalBayar').value = todayWitaStr();
+      document.getElementById('payTanggalBaru').value = addOneYearStr(v.tanggal_pajak);
+      document.getElementById('payCatatan').value = '';
+      document.getElementById('payHistory').innerHTML = 'Memuat riwayat...';
+      document.getElementById('payModal').style.display = 'flex';
+      try {
+        const hist = await apiRequest(`/vehicles/${id}/payments`);
+        document.getElementById('payHistory').innerHTML = hist.length === 0
+          ? '<em>Belum ada riwayat pembayaran.</em>'
+          : '<strong>Riwayat (' + hist.length + 'x):</strong><ul style="margin:6px 0 0 18px;padding:0">' +
+            hist.slice(0, 5).map(h => '<li>' + escapeHtml(h.tanggal_bayar || h.created_at) + ': ' + escapeHtml(h.tanggal_pajak_lama || '-') + ' &#8594; ' + escapeHtml(h.tanggal_pajak_baru) + ' oleh ' + escapeHtml(h.dibayar_oleh_nama || '-') + '</li>').join('') + '</ul>';
+      } catch (e) {
+        document.getElementById('payHistory').innerHTML = '';
+      }
+    }
+
+    function closePayModal() {
+      document.getElementById('payModal').style.display = 'none';
+      payVehicleId = null;
+    }
+    document.getElementById('payModal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('payModal')) closePayModal();
+    });
+
+    async function submitPay() {
+      if (!payVehicleId) return;
+      const btn = document.getElementById('paySubmitBtn');
+      const tanggal_bayar = document.getElementById('payTanggalBayar').value;
+      const tanggal_pajak_baru = document.getElementById('payTanggalBaru').value;
+      const catatan = document.getElementById('payCatatan').value;
+      if (!tanggal_pajak_baru) {
+        showToast('Jatuh tempo baru wajib diisi.', 'error');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+      try {
+        const res = await apiRequest(`/vehicles/${payVehicleId}/mark-paid`, {
+          method: 'POST',
+          body: JSON.stringify({ tanggal_bayar, tanggal_pajak_baru, catatan })
+        });
+        showToast(res.message || 'Berhasil ditandai sudah bayar.', 'success');
+        closePayModal();
+        loadVehicles();
+      } catch (err) {
+        showToast('Gagal simpan: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '&#10003; Sudah Bayar';
       }
     }
 
