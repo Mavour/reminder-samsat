@@ -105,6 +105,34 @@
 
         <div class="card" style="margin-top:16px">
           <div class="card-header">
+            <h2>&#9200; Jatuh Tempo 30 Hari ke Depan</h2>
+            <a href="/vehicles.html" class="btn btn-outline btn-sm">Lihat Semua</a>
+          </div>
+          <div class="table-wrapper" id="upcomingTable">
+            <table>
+              <thead>
+                <tr>
+                  <th>Nopol</th>
+                  <th>Jenis</th>
+                  <th>Merk</th>
+                  <th>Jatuh Tempo</th>
+                  <th>Sisa Hari</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="upcomingBody">
+              </tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="upcomingEmpty" style="display:none">
+            <div class="icon">&#10003;</div>
+            <p>Tidak ada pajak jatuh tempo dalam 30 hari ke depan</p>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">
             <h2>&#128197; Pajak Jatuh Tempo Bulan Ini</h2>
           </div>
           <div class="table-wrapper" id="monthlyTable">
@@ -189,6 +217,34 @@
               <span class="badge badge-${v.status}">${v.status_label}</span>
               <button class="btn btn-success btn-sm" style="width:auto;flex-shrink:0" onclick="markPaidDashboard(${v.id}, '${v.nopol}', '${v.tanggal_pajak}')" title="Tandai sudah bayar">&#10003; Sudah Bayar</button>
             </div>
+          `).join('');
+        }
+
+        const upcoming = vehicles
+          .filter(v => v.days_remaining >= 0 && v.days_remaining <= 30)
+          .sort((a, b) => a.days_remaining - b.days_remaining);
+
+        const upcomingBody = document.getElementById('upcomingBody');
+        const upcomingEmpty = document.getElementById('upcomingEmpty');
+        const upcomingTable = document.getElementById('upcomingTable');
+
+        if (upcoming.length === 0) {
+          upcomingBody.innerHTML = '';
+          upcomingEmpty.style.display = 'block';
+          upcomingTable.style.display = 'none';
+        } else {
+          upcomingEmpty.style.display = 'none';
+          upcomingTable.style.display = 'block';
+          upcomingBody.innerHTML = upcoming.map(v => `
+            <tr>
+              <td class="font-mono font-bold" data-label="Nopol">${v.nopol}</td>
+              <td data-label="Jenis">${v.jenis_kendaraan}</td>
+              <td data-label="Merk">${v.merk || '-'}</td>
+              <td data-label="Jatuh Tempo">${formatDateFull(v.tanggal_pajak)}</td>
+              <td data-label="Sisa Hari">H-${v.days_remaining}</td>
+              <td data-label="Status"><span class="badge badge-${v.status}">${v.status_label}</span></td>
+              <td data-label="Aksi"><button class="btn btn-success btn-sm" style="width:auto" onclick="markPaidDashboard(${v.id}, '${v.nopol}', '${v.tanggal_pajak}')" title="Tandai sudah bayar">&#10003;</button></td>
+            </tr>
           `).join('');
         }
 

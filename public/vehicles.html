@@ -85,7 +85,6 @@
                   <th>Nopol</th>
                   <th>Jenis</th>
                   <th>Merk/Tahun</th>
-                  <th>Pemilik</th>
                   <th>Jatuh Tempo</th>
                   <th>Estimasi</th>
                   <th>Status</th>
@@ -93,7 +92,7 @@
                 </tr>
               </thead>
               <tbody id="vehicleBody">
-                <tr><td colspan="8" class="text-center" style="padding:40px"><span class="loading-spinner"></span></td></tr>
+                <tr><td colspan="7" class="text-center" style="padding:40px"><span class="loading-spinner"></span></td></tr>
               </tbody>
             </table>
           </div>
@@ -204,7 +203,6 @@
           <td class="font-mono font-bold" data-label="Nopol">${v.nopol}</td>
           <td data-label="Jenis">${v.jenis_kendaraan}</td>
           <td data-label="Merk/Tahun">${v.merk || '-'} ${v.tahun || ''}${gantiPlatBadge(v)}</td>
-          <td data-label="Pemilik">${v.user_nama || '-'}</td>
           <td data-label="Jatuh Tempo">${formatDateFull(v.tanggal_pajak)}</td>
           <td data-label="Estimasi">${formatRupiah(v.total_estimasi_lengkap)}${v.biaya_ganti_plat > 0 ? '<div style="font-size:0.72rem;color:var(--gray-500)">termasuk ganti plat</div>' : ''}</td>
           <td data-label="Status"><span class="badge badge-${v.status}">${v.status_label}</span></td>
@@ -230,8 +228,7 @@
         filtered = filtered.filter(v =>
           v.nopol.toLowerCase().includes(search) ||
           (v.jenis_kendaraan && v.jenis_kendaraan.toLowerCase().includes(search)) ||
-          (v.merk && v.merk.toLowerCase().includes(search)) ||
-          (v.user_nama && v.user_nama.toLowerCase().includes(search))
+          (v.merk && v.merk.toLowerCase().includes(search))
         );
       }
 
