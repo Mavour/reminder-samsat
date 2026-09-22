@@ -48,11 +48,9 @@ async function checkAndSendReminders() {
     const dateStr = witaDateString(days);
 
     const vehicles = db.prepare(`
-      SELECT v.*, u.no_hp as user_hp
-      FROM vehicles v
-      LEFT JOIN users u ON v.user_id = u.id
-      WHERE v.status_aktif = 1
-        AND v.tanggal_pajak = ?
+      SELECT * FROM vehicles
+      WHERE status_aktif = 1
+        AND tanggal_pajak = ?
     `).all(dateStr);
 
     if (vehicles.length === 0) continue;

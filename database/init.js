@@ -32,7 +32,6 @@ function initDatabase() {
 
     CREATE TABLE IF NOT EXISTS vehicles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER,
       nopol TEXT NOT NULL,
       jenis_kendaraan TEXT NOT NULL,
       merk TEXT,
@@ -46,8 +45,7 @@ function initDatabase() {
       status_aktif INTEGER DEFAULT 1,
       catatan TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id)
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS notifications (
@@ -91,6 +89,9 @@ function initDatabase() {
     );
   `);
 
+  // Migrasi: hapus kolom user_id dari vehicles (kepemilikan tidak dipakai).
+  migrateDropVehiclesUserId(db);
+
   // Migrasi: tambah kolom estimasi_opsen_pkb untuk DB lama yang belum punya
   const cols = db.prepare(`PRAGMA table_info(vehicles)`).all();
   if (!cols.some(c => c.name === 'estimasi_opsen_pkb')) {
@@ -122,6 +123,54 @@ function initDatabase() {
 
   console.log('[DB] Database berhasil diinisialisasi');
   return db;
+}
+
+function migrateDropVehiclesUserId(db) {
+  const cols = db.prepare(`PRAGMA table_info(vehicles)`).all().map(c => c.name);
+  if (!cols.includes('user_id')) return; // sudah skema baru
+
+  // DROP COLUMN tidak bisa dipakai: user_id terikat definisi foreign key.
+  // Salin ulang tabel tanpa user_id. PRAGMA foreign_keys harus di luar
+  // transaksi (no-op di dalam transaksi).
+  console.log('[DB] Migrasi: hapus kolom vehicles.user_id ...');
+  db.pragma('foreign_keys = OFF');
+  try {
+    const migrate = db.transaction(() => {
+      db.exec(`
+        CREATE TABLE vehicles_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nopol TEXT NOT NULL,
+          jenis_kendaraan TEXT NOT NULL,
+          merk TEXT,
+          tahun INTEGER,
+          warna TEXT,
+          tanggal_pajak DATE NOT NULL,
+          estimasi_pkb DECIMAL(12,2) DEFAULT 0,
+          estimasi_opsen_pkb DECIMAL(12,2) DEFAULT 0,
+          estimasi_swdkllj DECIMAL(12,2) DEFAULT 0,
+          total_estimasi DECIMAL(12,2) DEFAULT 0,
+          status_aktif INTEGER DEFAULT 1,
+          catatan TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO vehicles_new
+          (id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak,
+           estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj, total_estimasi,
+           status_aktif, catatan, created_at, updated_at)
+        SELECT id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak,
+          estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj, total_estimasi,
+          status_aktif, catatan, created_at, updated_at
+        FROM vehicles;
+        DROP TABLE vehicles;
+        ALTER TABLE vehicles_new RENAME TO vehicles;
+      `);
+    });
+    migrate();
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
+  console.log('[DB] Migrasi: kolom vehicles.user_id dihapus.');
 }
 
 module.exports = { getDb, initDatabase };

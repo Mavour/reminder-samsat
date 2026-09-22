@@ -35,22 +35,12 @@ function buildReminderData(vehicle) {
   return { message, recipients, phones, days, isLast, diffDays };
 }
 
-function getVehicleOr403(req, res) {
+function getVehicleOr404(req, res) {
   const db = getDb();
-  const vehicle = db.prepare(`
-    SELECT v.*, u.no_hp as user_hp, u.nama as user_nama
-    FROM vehicles v
-    LEFT JOIN users u ON v.user_id = u.id
-    WHERE v.id = ?
-  `).get(req.params.vehicleId);
+  const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(req.params.vehicleId);
 
   if (!vehicle) {
     res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
-    return null;
-  }
-
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    res.status(403).json({ error: 'Akses ditolak.' });
     return null;
   }
 
@@ -58,7 +48,7 @@ function getVehicleOr403(req, res) {
 }
 
 router.post('/preview/:vehicleId', authMiddleware, (req, res) => {
-  const vehicle = getVehicleOr403(req, res);
+  const vehicle = getVehicleOr404(req, res);
   if (!vehicle) return;
 
   const data = buildReminderData(vehicle);
@@ -76,26 +66,13 @@ router.post('/preview/:vehicleId', authMiddleware, (req, res) => {
 
 router.get('/', authMiddleware, (req, res) => {
   const db = getDb();
-  let notifs;
-
-  if (req.user.role === 'admin') {
-    notifs = db.prepare(`
-      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk, v.tahun
-      FROM notifications n
-      LEFT JOIN vehicles v ON n.vehicle_id = v.id
-      ORDER BY n.sent_at DESC
-      LIMIT 100
-    `).all();
-  } else {
-    notifs = db.prepare(`
-      SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk, v.tahun
-      FROM notifications n
-      LEFT JOIN vehicles v ON n.vehicle_id = v.id
-      WHERE v.user_id = ?
-      ORDER BY n.sent_at DESC
-      LIMIT 100
-    `).all(req.user.id);
-  }
+  const notifs = db.prepare(`
+    SELECT n.*, v.nopol, v.jenis_kendaraan, v.merk, v.tahun
+    FROM notifications n
+    LEFT JOIN vehicles v ON n.vehicle_id = v.id
+    ORDER BY n.sent_at DESC
+    LIMIT 100
+  `).all();
 
   const currentYear = witaNow().getFullYear();
   notifs = notifs.map(n => ({ ...n, ...computeGantiPlat(n.tahun, currentYear) }));
@@ -105,7 +82,7 @@ router.get('/', authMiddleware, (req, res) => {
 
 router.post('/send/:vehicleId', authMiddleware, async (req, res) => {
   const db = getDb();
-  const vehicle = getVehicleOr403(req, res);
+  const vehicle = getVehicleOr404(req, res);
   if (!vehicle) return;
 
   const data = buildReminderData(vehicle);

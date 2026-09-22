@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('../database/init');
-const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { enrichVehicle } = require('../services/gantiPlat');
 const { witaNow, witaDateString, diffDaysFromToday } = require('../services/wita');
 
@@ -8,25 +8,11 @@ const router = express.Router();
 
 router.get('/', authMiddleware, (req, res) => {
   const db = getDb();
-  let vehicles;
-
-  if (req.user.role === 'admin') {
-    vehicles = db.prepare(`
-      SELECT v.*, u.nama as user_nama
-      FROM vehicles v
-      LEFT JOIN users u ON v.user_id = u.id
-      WHERE v.status_aktif = 1
-      ORDER BY v.tanggal_pajak ASC
-    `).all();
-  } else {
-    vehicles = db.prepare(`
-      SELECT v.*, u.nama as user_nama
-      FROM vehicles v
-      LEFT JOIN users u ON v.user_id = u.id
-      WHERE v.user_id = ? AND v.status_aktif = 1
-      ORDER BY v.tanggal_pajak ASC
-    `).all(req.user.id);
-  }
+  let vehicles = db.prepare(`
+    SELECT * FROM vehicles
+    WHERE status_aktif = 1
+    ORDER BY tanggal_pajak ASC
+  `).all();
 
   const now = witaNow();
   const currentYear = now.getFullYear();
@@ -63,14 +49,12 @@ router.get('/stats', authMiddleware, (req, res) => {
   const todayStr = witaDateString();
   const in30Str = witaDateString(30);
 
-  let whereClause = req.user.role === 'admin' ? '' : 'AND v.user_id = ' + req.user.id;
-
-  const total = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 ${whereClause}`).get().count;
-  const expiring = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= ? AND v.tanggal_pajak <= ? ${whereClause}`).get(todayStr, in30Str).count;
-  const expired = db.prepare(`SELECT COUNT(*) as count FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak < ? ${whereClause}`).get(todayStr).count;
+  const total = db.prepare(`SELECT COUNT(*) as count FROM vehicles WHERE status_aktif = 1`).get().count;
+  const expiring = db.prepare(`SELECT COUNT(*) as count FROM vehicles WHERE status_aktif = 1 AND tanggal_pajak >= ? AND tanggal_pajak <= ?`).get(todayStr, in30Str).count;
+  const expired = db.prepare(`SELECT COUNT(*) as count FROM vehicles WHERE status_aktif = 1 AND tanggal_pajak < ?`).get(todayStr).count;
 
   const currentYear = witaNow().getFullYear();
-  const in30Vehicles = db.prepare(`SELECT v.* FROM vehicles v WHERE v.status_aktif = 1 AND v.tanggal_pajak >= ? AND v.tanggal_pajak <= ? ${whereClause}`).all(todayStr, in30Str);
+  const in30Vehicles = db.prepare(`SELECT * FROM vehicles WHERE status_aktif = 1 AND tanggal_pajak >= ? AND tanggal_pajak <= ?`).all(todayStr, in30Str);
   const totalBiaya = in30Vehicles.reduce((sum, v) => sum + enrichVehicle(v, currentYear).total_estimasi_lengkap, 0);
 
   res.json({
@@ -83,19 +67,10 @@ router.get('/stats', authMiddleware, (req, res) => {
 
 router.get('/:id', authMiddleware, (req, res) => {
   const db = getDb();
-  const vehicle = db.prepare(`
-    SELECT v.*, u.nama as user_nama
-    FROM vehicles v
-    LEFT JOIN users u ON v.user_id = u.id
-    WHERE v.id = ?
-  `).get(req.params.id);
+  const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(req.params.id);
 
   if (!vehicle) {
     return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
-  }
-
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Akses ditolak.' });
   }
 
   res.json(enrichVehicle(vehicle, witaNow().getFullYear()));
@@ -105,7 +80,7 @@ router.post('/', authMiddleware, (req, res) => {
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj,
-    catatan, user_id
+    catatan
   } = req.body;
 
   if (!nopol || !jenis_kendaraan || !tanggal_pajak) {
@@ -116,13 +91,12 @@ router.post('/', authMiddleware, (req, res) => {
   const opsen = parseFloat(estimasi_opsen_pkb) || 0;
   const swdkllj = parseFloat(estimasi_swdkllj) || 0;
   const total = pkb + opsen + swdkllj;
-  const assignedUserId = req.user.role === 'admin' ? (user_id || req.user.id) : req.user.id;
 
   const db = getDb();
   const result = db.prepare(`
-    INSERT INTO vehicles (user_id, nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj, total_estimasi, catatan)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(assignedUserId, nopol.toUpperCase(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, opsen, swdkllj, total, catatan || null);
+    INSERT INTO vehicles (nopol, jenis_kendaraan, merk, tahun, warna, tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj, total_estimasi, catatan)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(nopol.toUpperCase().trim(), jenis_kendaraan, merk || null, tahun || null, warna || null, tanggal_pajak, pkb, opsen, swdkllj, total, catatan || null);
 
   res.status(201).json({
     message: 'Kendaraan berhasil ditambahkan.',
@@ -138,14 +112,10 @@ router.put('/:id', authMiddleware, (req, res) => {
     return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
   }
 
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Akses ditolak.' });
-  }
-
   const {
     nopol, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, estimasi_pkb, estimasi_opsen_pkb, estimasi_swdkllj,
-    catatan, status_aktif, user_id
+    catatan, status_aktif
   } = req.body;
 
   const numOrKeep = (val, old) => (val === undefined || val === null || val === '' ? (parseFloat(old) || 0) : (parseFloat(val) || 0));
@@ -168,13 +138,12 @@ router.put('/:id', authMiddleware, (req, res) => {
       total_estimasi = ?,
       catatan = COALESCE(?, catatan),
       status_aktif = COALESCE(?, status_aktif),
-      user_id = COALESCE(?, user_id),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
-    nopol ? nopol.toUpperCase() : null, jenis_kendaraan, merk, tahun, warna,
+    nopol ? nopol.toUpperCase().trim() : null, jenis_kendaraan, merk, tahun, warna,
     tanggal_pajak, pkb, opsen, swdkllj, total,
-    catatan, status_aktif, user_id, req.params.id
+    catatan, status_aktif, req.params.id
   );
 
   res.json({ message: 'Data kendaraan berhasil diperbarui.' });
@@ -198,10 +167,6 @@ router.post('/:id/mark-paid', authMiddleware, (req, res) => {
 
   if (!vehicle) {
     return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
-  }
-
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Akses ditolak.' });
   }
 
   let { tanggal_bayar, tanggal_pajak_baru, catatan } = req.body || {};
@@ -247,10 +212,6 @@ router.get('/:id/payments', authMiddleware, (req, res) => {
     return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
   }
 
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Akses ditolak.' });
-  }
-
   const rows = db.prepare(`
     SELECT h.*, u.nama as dibayar_oleh_nama
     FROM payment_history h
@@ -268,10 +229,6 @@ router.delete('/:id', authMiddleware, (req, res) => {
 
   if (!vehicle) {
     return res.status(404).json({ error: 'Kendaraan tidak ditemukan.' });
-  }
-
-  if (req.user.role !== 'admin' && vehicle.user_id !== req.user.id) {
-    return res.status(403).json({ error: 'Akses ditolak.' });
   }
 
   db.prepare('UPDATE vehicles SET status_aktif = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
